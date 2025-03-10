@@ -1,0 +1,70 @@
+<!-- This is what is needed to communicate with the ros_websocket. -->
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini-Sito ROS 2</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+</head>
+<body>
+    <h2>Messaggi ricevuti da ROS 2:</h2>
+    <div id="output">In attesa di dati...</div>
+    
+    <script>
+
+        /*
+            This code allow to send messages to ros, now we don't need it. but it could be good then.
+        */
+        // var ros = new ROSLIB.Ros({
+        //     url: 'ws://127.0.0.1:9090'  // Assicurati che il WebSocket sia attivo e il server sia in ascolto su questa porta
+        // });
+
+        // ros.on('connection', function() {
+        //     console.log('Connected to ROS 2!');
+        // });
+
+        // ros.on('error', function(error) {
+        //     console.log('WebSocket Error:', error);
+        // });
+
+        // ros.on('close', function() {
+        //     console.log('Connection close!');
+        // });
+
+        // // Sottoscrizione al topic 'web_topic'
+        // var listener = new ROSLIB.Topic({
+        //     ros: ros,
+        //     name: '/web_topic',
+        //     messageType: 'std_msgs/String'
+        // });
+
+        // // Quando un messaggio viene ricevuto, aggiorna il contenuto del div con il messaggio
+        // listener.subscribe(function(message) {
+        //     console.log('Messaggio ricevuto:', message.data);
+        //     document.getElementById("output").innerText = "ROS 2 message: " + message.data;  // Visualizza il messaggio ricevuto nel div
+        // });
+
+        // Connessione WebSocket per inviare un messaggio
+        var socket = new WebSocket("ws://127.0.0.1:9090");
+
+        socket.onopen = function() {
+            console.log("WebSocket Open!");
+            // Invia un messaggio di esempio
+            // socket.send("Ciao WebSocket!");
+        };
+
+        socket.onerror = function(err) {
+            console.log("WebSocket Error:", err);
+        };
+
+        socket.onmessage = function(msg) {
+            // console.log("Messaggio ricevuto dal nodo ROS:", msg.data);
+            // Mostra la risposta del WebSocket (dal nodo ROS) nel sito
+            document.getElementById("output").innerText = "WebSocket answer: " + msg.data; // Aggiorna il contenuto del div con la risposta ricevuta
+        };
+
+    </script>
+</body>
+</html>
