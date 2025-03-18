@@ -6,8 +6,9 @@
     <title>Mini-Sito ROS 2</title>
 </head>
 <body>
-    <div id="speed">Trasmettiamo a:</div>
+    <div id="latency">Trasmettiamo a:</div>
     <div id="bandwidth">Trasmettiamo a:</div>
+    <div id="message"></div>
     <h2>Messaggi ricevuti da ROS 2:</h2>
     <div id="output">In attesa di dati...</div>
     
@@ -15,10 +16,10 @@
     <script>
 
         var socket = new WebSocket("ws://127.0.0.1:9090");
-        let lastTime = performance.now(); // Tempo dell'ultimo pacchetto ricevuto
-        let totalBytes = 0; // Contatore dei byte ricevuti
-        let speedSum = 0; // Somma delle velocità per calcolare la velocità media
-        let packetCount = 0; // Conteggio dei pacchetti ricevuti
+        let timestamp = 0;
+        let bandwidth = 0;
+        let dataReceived = false; // Variabile per tracciare se sono arrivati dati
+
 
         socket.onopen = function() {
             console.log("WebSocket Open!");
@@ -31,51 +32,25 @@
         socket.onmessage = function(msg) {
             // Mostra la risposta del WebSocket (dal nodo ROS) nel sito
             document.getElementById("output").innerText = "WebSocket answer: " + msg.data;
+            const jsonData = JSON.parse(msg.data);
+            timestamp = jsonData['timestamp'];
+            bandwidth = jsonData['Ndata'];
+            dataReceived = true;
+        }
 
-            // Calcola il tempo trascorso dal pacchetto precedente
-            let currentTime = performance.now();
-            let elapsedMs = currentTime - lastTime;
-
-            // Evita la divisione per zero
-            if (elapsedMs < 1) {
-                elapsedMs = 1; // Se il tempo è troppo breve, imposta un valore minimo
-            }
-
-            // Calcola la dimensione del pacchetto ricevuto in byte
-            let dataSize = new TextEncoder().encode(msg.data).length; // Ottieni la lunghezza in byte
-
-            // Calcola la velocità in Mbps
-            let speedMbps = (dataSize * 8 / (elapsedMs / 1000)) / 1e6; // Converti in Mbps
-
-            speedSum += speedMbps; // Somma la velocità per la media
-            packetCount++; // Incrementa il conteggio dei pacchetti
-
-            lastTime = currentTime; // Aggiorna il tempo dell'ultimo pacchetto ricevuto
-
-            // Aggiungi la dimensione del pacchetto alla banda totale
-            totalBytes += dataSize;
-        };
-
-        // Aggiorna la velocità media ogni secondo
         setInterval(() => {
-            if (packetCount > 0) {
-                let averageSpeed = Math.round(speedSum / packetCount); // Calcola la velocità media
-                document.getElementById("speed").innerText = `Velocità: ${averageSpeed} Mbps`;
 
-                // Resetta i valori per il prossimo intervallo
-                speedSum = 0;
-                packetCount = 0;
+            if(dataReceived){
+                document.getElementById("latency").innerText = (Date.now() - (timestamp* 1e3).toFixed(2)).toFixed(2) + " ms";
+                document.getElementById("bandwidth").innerText = ((bandwidth*8/(Date.now()/1e3 - timestamp))/1e6).toFixed(2) + " Mbps";
             }
+            else{
+                document.getElementById("message").innerText = "Websocket closed";
+
+            }
+            dataReceived = false;
         }, 1000);
 
-        // Aggiorna la bandwidth ogni secondo
-        setInterval(() => {
-            if (totalBytes > 0) {
-                let bandwidthMbps = ((totalBytes * 8) / 1e6).toFixed(0); // Calcola la bandwidth in Mbps
-                document.getElementById("bandwidth").innerText = `Bandwidth: ${bandwidthMbps} Mbps`;
-                totalBytes = 0; // Resetta il conteggio per il prossimo intervallo
-            }
-        }, 1000);
 
     </script>
 </body>
