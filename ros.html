@@ -7,7 +7,7 @@
 </head>
 <body>
     <div id="latency">Trasmettiamo a:</div>
-    <div id="bandwidth">Trasmettiamo a:</div>
+    <div id="throughput">Trasmettiamo a:</div>
     <div id="message"></div>
     <h2>Messaggi ricevuti da ROS 2:</h2>
     <div id="output">In attesa di dati...</div>
@@ -17,7 +17,7 @@
 
         var socket = new WebSocket("ws://127.0.0.1:9090");
         let timestamp = 0;
-        let bandwidth = 0;
+        let data_size = 0;
         let dataReceived = false; // Variabile per tracciare se sono arrivati dati
 
 
@@ -34,15 +34,33 @@
             document.getElementById("output").innerText = "WebSocket answer: " + msg.data;
             const jsonData = JSON.parse(msg.data);
             timestamp = jsonData['timestamp'];
-            bandwidth = jsonData['Ndata'];
+            data_size = jsonData['Ndata'];
             dataReceived = true;
+            
+            message = {
+                "time": Date.now()
+            };     
+            socket.send(JSON.stringify(message));
         }
+
+        // setInterval(() => {
+
+        //     if(dataReceived){
+        //         document.getElementById("latency").innerText = (Date.now() - (timestamp* 1e3).toFixed(2)).toFixed(2) + " ms";
+        //         document.getElementById("throughput").innerText = ((throughput*8/(Date.now()/1e3 - timestamp))/1e6).toFixed(2) + " Mbps";
+        //     }
+        //     else{
+        //         document.getElementById("message").innerText = "Websocket closed";
+
+        //     }
+        //     dataReceived = false;
+        // }, 1000);
 
         setInterval(() => {
 
             if(dataReceived){
-                document.getElementById("latency").innerText = (Date.now() - (timestamp* 1e3).toFixed(2)).toFixed(2) + " ms";
-                document.getElementById("bandwidth").innerText = ((bandwidth*8/(Date.now()/1e3 - timestamp))/1e6).toFixed(2) + " Mbps";
+                document.getElementById("latency").innerText = timestamp + " ms";
+                document.getElementById("throughput").innerText = ((data_size*8/timestamp)/1e3).toFixed(2) + " bps";
             }
             else{
                 document.getElementById("message").innerText = "Websocket closed";
