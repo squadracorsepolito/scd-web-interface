@@ -50,8 +50,8 @@
             if(dataReceived){
                 document.getElementById("latency").innerText = latency.toFixed(2) + " ms";
                 // let throughput = latency > 0 ? ((data_size * 8 / latency) / 1e3).toFixed(2) : 0;
-                document.getElementById("throughput").innerText = ((data_size*8)/(latency*1e3)).toFixed(2) + " bps";
-                document.getElementById("data").innerText = data_size + " bps";
+                document.getElementById("throughput").innerText = (((data_size*8)/(latency/1e3))/1e6).toFixed(2) + " Mbps";
+                document.getElementById("data").innerText = data_size + " byte";
 
             }
             else{
