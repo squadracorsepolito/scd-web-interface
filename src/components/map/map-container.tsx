@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import GlobalMap from "./global-map"
-import type { VehicleData, MapSettings } from "@/types/vehicle-types"
+import type { VehicleData } from "@/types/vehicle-types"
 
 type MapContainerProps = {
   data: VehicleData | null
@@ -16,10 +16,31 @@ export default function MapContainer({ data }: MapContainerProps) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 })
-  const [globalMapSettings, setGlobalMapSettings] = useState<MapSettings>({
-    zoom: 1,
-    pan: { x: 0, y: 0 },
-  })
+  const [ping, setPing] = useState<number | null>(null)
+  const [lastTimestamp, setLastTimestamp] = useState<number>(0)
+  const [bandwidth, setBandwidth] = useState<number | null>(null)
+
+  // Toggle state variables
+  const [showWaypoints, setShowWaypoints] = useState(true)
+  const [showWaypointIndicators, setShowWaypointIndicators] = useState(true)
+  const [showActiveCones, setShowActiveCones] = useState(true)
+  const [showGreenPoints, setShowGreenPoints] = useState(true)
+  const [showCones, setShowCones] = useState(true)
+
+  useEffect(() => {
+    if (data?.timestamp !== undefined) {
+      const latency = data.timestamp - lastTimestamp;
+      setLastTimestamp(data.timestamp);
+      setPing(latency);
+      if (data?.Ndata !== undefined) {
+        const dataDiff = data.Ndata;
+        if (latency > 0) {
+          const bw = (dataDiff / latency) * 1000 / 1024;
+          setBandwidth(bw);
+        }
+      }
+    }
+  }, [data]);
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
 
@@ -87,6 +108,64 @@ export default function MapContainer({ data }: MapContainerProps) {
     <div className="flex-1 relative">
       <div className="absolute inset-0 p-6">
         <div className="w-full h-full rounded-xl overflow-hidden border border-zinc-800/40 shadow-lg bg-zinc-900/30 backdrop-blur-sm">
+          <div className="absolute top-4 left-4 z-10 bg-zinc-800/80 backdrop-blur-sm p-2 rounded-lg border border-zinc-700/40">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCones(!showCones)}
+                className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                  showCones 
+                    ? "bg-yellow-600 text-white"
+                    : "bg-zinc-700/70 text-zinc-400"
+                }`}
+              >
+                Cones
+              </button>
+
+              <button
+                onClick={() => setShowWaypoints(!showWaypoints)}
+                className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                  showWaypoints 
+                    ? "bg-violet-600 text-white" 
+                    : "bg-zinc-700/70 text-zinc-400"
+                }`}
+              >
+                Waypoints
+              </button>
+              
+              <button
+                onClick={() => setShowWaypointIndicators(!showWaypointIndicators)}
+                className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                  showWaypointIndicators 
+                    ? "bg-blue-600 text-white" 
+                    : "bg-zinc-700/70 text-zinc-400"
+                }`}
+              >
+                Indicators
+              </button>
+              
+              <button
+                onClick={() => setShowActiveCones(!showActiveCones)}
+                className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                  showActiveCones 
+                    ? "bg-orange-600 text-white" 
+                    : "bg-zinc-700/70 text-zinc-400"
+                }`}
+              >
+                Active Cones
+              </button>
+
+              <button
+                onClick={() => setShowGreenPoints(!showGreenPoints)}
+                className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                  showGreenPoints 
+                    ? "bg-green-600 text-white" 
+                    : "bg-zinc-700/70 text-zinc-400"
+                }`}
+              >
+                Green Points
+              </button>
+            </div>
+          </div>
           <GlobalMap
             data={data}
             zoom={zoom}
@@ -95,7 +174,22 @@ export default function MapContainer({ data }: MapContainerProps) {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onWheel={handleWheel}
+            showCones={showCones}
+            showWaypoints={showWaypoints}
+            showWaypointIndicators={showWaypointIndicators}
+            showActiveCones={showActiveCones}
+            showGreenPoints={showGreenPoints}
           />
+        </div>
+      </div>
+      <div className="absolute top-8 right-8 px-3 py-1.5 bg-black/70 border border-zinc-700 rounded-md">
+        <div className="flex flex-col">
+          <span className="text-sm font-mono">
+            {ping !== null ? `Ping: ${ping.toFixed(2)}ms` : 'Calculating ping...'}
+          </span>
+          <span className="text-sm font-mono">
+            {bandwidth !== null ? `Bandwidth: ${bandwidth.toFixed(2)}KB/s` : 'Calculating bandwidth...'}
+          </span>
         </div>
       </div>
 

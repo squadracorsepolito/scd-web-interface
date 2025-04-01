@@ -7,8 +7,11 @@ export type VehicleData = {
   throttle: number
   state: number
   lap: number
+  timestamp: number
+  Ndata: number
   map_cones: Cone[]
   active_cones: Cone[]
+  green_points?: Cone[] 
   waypoint_array: Waypoint[]
 }
 
