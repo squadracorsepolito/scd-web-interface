@@ -8,6 +8,7 @@ import ConeStats from "./cone-stats"
 import SpeedChart from "../charts/speed-chart"
 import ThrottleChart from "../charts/throttle-chart"
 import type { DataPoint } from "@/types/vehicle-types"
+import Image from "next/image"
 
 type VehicleDashboardProps = {
   data: VehicleData | null
@@ -36,7 +37,18 @@ export default function VehicleDashboard({
     >
       <div className="space-y-6">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-white">SCD Web Interface</h1>
+          <div className="flex items-center gap-3">
+            <div className="relative w-32 h-6 shrink-0">
+              <Image 
+                src="/SCD.svg" 
+                alt="Squadra Corse Driverless" 
+                fill 
+                className="object-contain"
+                priority
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-white">Web Interface</h1>
+          </div>
           <div className="h-0.5 w-full bg-gradient-to-r from-red-600 to-red-900"></div>
         </div>
 

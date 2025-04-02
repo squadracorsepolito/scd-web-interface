@@ -6,6 +6,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import GlobalMap from "./global-map"
 import type { VehicleData } from "@/types/vehicle-types"
+import Image from "next/image"
 
 type MapContainerProps = {
   data: VehicleData | null
@@ -182,6 +183,8 @@ export default function MapContainer({ data }: MapContainerProps) {
           />
         </div>
       </div>
+
+      {/* Ping */}
       <div className="absolute top-8 right-8 px-3 py-1.5 bg-black/70 border border-zinc-700 rounded-md">
         <div className="flex flex-col">
           <span className="text-sm font-mono">
@@ -193,6 +196,20 @@ export default function MapContainer({ data }: MapContainerProps) {
         </div>
       </div>
 
+      {/* SCD Logo */}
+      <div className="absolute bottom-8 left-8">
+        <div className="relative w-20 h-6 opacity-50">
+          <Image 
+            src="/SCD.svg" 
+            alt="Squadra Corse Driverless" 
+            fill 
+            className="object-contain"
+            priority
+          />
+        </div>
+      </div>
+
+      {/* Zoom */}
       <div className="absolute bottom-8 right-8 flex flex-col space-y-2">
         <Button
           onClick={() => {

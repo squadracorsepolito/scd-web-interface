@@ -40,9 +40,9 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     const chartWidth = canvas.width - padding.left - padding.right
     const chartHeight = canvas.height - padding.top - padding.bottom
 
-    // Find min/max values
-    const minThrottle = 0 // Throttle usually starts from 0
-    const maxThrottle = Math.max(1, ...data.map((d) => d.value)) // At least 1 for scale
+    // Set range for throttle
+    const minThrottle = -1
+    const maxThrottle = Math.max(1, ...data.map((d) => d.value))
 
     let minTime = Math.min(...data.map((d) => d.timestamp))
     const maxTime = Math.max(...data.map((d) => d.timestamp))
@@ -126,6 +126,12 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     ctx.textAlign = "center"
     ctx.fillText("Time (s)", canvas.width / 2, canvas.height - 5)
 
+    // Apply clipping to keep the graph within chart area
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(padding.left, padding.top, chartWidth, chartHeight)
+    ctx.clip()
+
     // Draw data line
     ctx.beginPath()
     ctx.strokeStyle = "#EF4444"
@@ -143,6 +149,7 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     })
 
     ctx.stroke()
+    ctx.restore()
 
     // Add legend
     ctx.fillStyle = "#FFFFFF"

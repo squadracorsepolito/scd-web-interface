@@ -126,6 +126,12 @@ export default function SpeedChart({ data }: SpeedChartProps) {
     ctx.textAlign = "center"
     ctx.fillText("Time (s)", canvas.width / 2, canvas.height - 5)
 
+    // Apply clipping to keep the graph within chart area
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(padding.left, padding.top, chartWidth, chartHeight)
+    ctx.clip()
+
     // Draw data line
     ctx.beginPath()
     ctx.strokeStyle = "#EF4444"
@@ -143,6 +149,7 @@ export default function SpeedChart({ data }: SpeedChartProps) {
     })
 
     ctx.stroke()
+    ctx.restore()
 
     // Add legend
     ctx.fillStyle = "#FFFFFF"
