@@ -8,18 +8,19 @@ import GlobalMap from "./global-map"
 import type { VehicleData } from "@/types/vehicle-types"
 import Image from "next/image"
 
-type MapContainerProps = {
-  data: VehicleData | null
+interface MapContainerProps {
+  data: VehicleData | null;
+  connectionMode?: 'live' | 'replay';
 }
 
-export default function MapContainer({ data }: MapContainerProps) {
+export function MapContainer({ data, connectionMode = 'live' }: MapContainerProps) {
+  const [bandwidth, setBandwidth] = useState<number | null>(null);
+  const [ping, setPing] = useState<number>(0);
+  const [lastTimestamp, setLastTimestamp] = useState<number>(0);
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 })
-  const [ping, setPing] = useState<number | null>(null)
-  const [lastTimestamp, setLastTimestamp] = useState<number>(0)
-  const [bandwidth, setBandwidth] = useState<number | null>(null)
 
   // Toggle state variables
   const [showWaypoints, setShowWaypoints] = useState(true)
@@ -185,16 +186,18 @@ export default function MapContainer({ data }: MapContainerProps) {
       </div>
 
       {/* Ping */}
-      <div className="absolute top-8 right-8 px-3 py-1.5 bg-black/70 border border-zinc-700 rounded-md">
-        <div className="flex flex-col">
-          <span className="text-sm font-mono">
-            {ping !== null ? `Ping: ${ping.toFixed(2)}ms` : 'Calculating ping...'}
-          </span>
-          <span className="text-sm font-mono">
-            {bandwidth !== null ? `Bandwidth: ${bandwidth.toFixed(2)}KB/s` : 'Calculating bandwidth...'}
-          </span>
+      {connectionMode === 'live' && (
+        <div className="absolute top-8 right-8 px-3 py-1.5 bg-black/70 border border-zinc-700 rounded-md">
+          <div className="flex flex-col">
+            <span className="text-sm font-mono">
+              {ping !== null ? `Ping: ${ping.toFixed(2)}ms` : 'Calculating ping...'}
+            </span>
+            <span className="text-sm font-mono">
+              {bandwidth !== null ? `Bandwidth: ${bandwidth.toFixed(2)}KB/s` : 'Calculating bandwidth...'}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* SCD Logo */}
       <div className="absolute bottom-8 left-8">

@@ -2,10 +2,9 @@
 import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
-
 import type { VehicleData as VehicleDataType, DataPoint as DataPointType } from "@/types/vehicle-types"
 import VehicleDashboard from "../components/dashboard/vehicle-dashboard"
-import MapContainer from "../components/map/map-container"
+import { MapContainer } from "../components/map/map-container"
 import { WebSocketService } from "../utils/websocket-service"
 
 export default function VehicleVisualization() {
@@ -15,29 +14,30 @@ export default function VehicleVisualization() {
   const [speedData, setSpeedData] = useState<DataPointType[]>([])
   const [throttleData, setThrottleData] = useState<DataPointType[]>([])
   const reconnectAttemptsRef = useRef(0)
-  const wsRef = useRef<WebSocketService | null>(null)
-  useEffect(() => {
-    // Initialize WebSocket service
-    wsRef.current = new WebSocketService({
+  const wsRef = useRef<WebSocketService | null>(
+    new WebSocketService({
       onConnect: () => setConnected(true),
-      onDisconnect: () => setConnected(false),
+      onDisconnect: () => {
+        setConnected(false)
+        setIsReconnecting(false)
+      },
       onReconnecting: (attempt) => {
         reconnectAttemptsRef.current = attempt
         setIsReconnecting(true)
       },
       onData: (receivedData) => setData(receivedData),
       onSpeedData: (data) => setSpeedData(data),
-      onThrottleData: (data) => setThrottleData(data),
+      onThrottleData: (data) => setThrottleData(data)
     })
+  )
 
-    // Connect to WebSocket
-    wsRef.current.connect()
+  useEffect(() => {
+    // Connect to WebSocket on mount
+    wsRef.current?.connect()
 
     // Cleanup on unmount
     return () => {
-      if (wsRef.current) {
-        wsRef.current.disconnect()
-      }
+      wsRef.current?.disconnect()
     }
   }, [])
 
@@ -50,9 +50,12 @@ export default function VehicleVisualization() {
         reconnectAttempt={reconnectAttemptsRef.current}
         speedData={speedData}
         throttleData={throttleData}
+        webSocketService={wsRef.current}
       />
-      <MapContainer data={data} />
+      <MapContainer 
+        data={data} 
+        connectionMode={wsRef.current?.getConnectionMode()} 
+      />
     </div>
   )
 }
-

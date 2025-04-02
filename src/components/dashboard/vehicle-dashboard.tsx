@@ -1,7 +1,6 @@
 "use client"
 
-import { type VehicleData, getStateClass, getStateLabel } from "@/types/vehicle-types"
-import ConnectionStatus from "./connection-status"
+import { type VehicleData } from "@/types/vehicle-types"
 import VehicleMetrics from "./vehicle-metrics"
 import SteeringWheel from "./steering-wheel"
 import ConeStats from "./cone-stats"
@@ -9,6 +8,8 @@ import SpeedChart from "../charts/speed-chart"
 import ThrottleChart from "../charts/throttle-chart"
 import type { DataPoint } from "@/types/vehicle-types"
 import Image from "next/image"
+import { WebSocketService } from "@/utils/websocket-service"
+import { ConnectionControls } from '@/components/ui/ConnectionControls'
 
 type VehicleDashboardProps = {
   data: VehicleData | null
@@ -17,6 +18,7 @@ type VehicleDashboardProps = {
   reconnectAttempt: number
   speedData: DataPoint[]
   throttleData: DataPoint[]
+  webSocketService: WebSocketService | null
 }
 
 export default function VehicleDashboard({
@@ -26,6 +28,7 @@ export default function VehicleDashboard({
   reconnectAttempt,
   speedData,
   throttleData,
+  webSocketService,
 }: VehicleDashboardProps) {
   return (
     <div
@@ -53,12 +56,16 @@ export default function VehicleDashboard({
         </div>
 
         <div className="space-y-4">
-          <ConnectionStatus connected={connected} isReconnecting={isReconnecting} reconnectAttempt={reconnectAttempt} />
-
-          <div className="flex justify-between items-center">
-            <span className="text-zinc-400">Current State:</span>
-            <div className={`px-3 py-1 rounded-full ${getStateClass(data?.state)}`}>{getStateLabel(data?.state)}</div>
-          </div>
+          {webSocketService && (
+            <div className="p-4 rounded-lg bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/40">
+              <ConnectionControls 
+                webSocketService={webSocketService}
+                connected={connected}
+                isReconnecting={isReconnecting}
+                reconnectAttempt={reconnectAttempt}
+              />
+            </div>
+          )}
 
           <VehicleMetrics data={data} />
           <SteeringWheel delta={data?.delta} />
@@ -82,4 +89,3 @@ export default function VehicleDashboard({
     </div>
   )
 }
-
