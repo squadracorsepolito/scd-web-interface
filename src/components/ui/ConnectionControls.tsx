@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { WebSocketService } from '@/utils/websocket-service'
-import { RewindIcon, FastForwardIcon } from 'lucide-react'
+import { RewindIcon, FastForwardIcon, RepeatIcon } from 'lucide-react'
 
 interface ConnectionControlsProps {
   webSocketService: WebSocketService
@@ -21,6 +21,7 @@ export function ConnectionControls({
   const [progress, setProgress] = useState(0)
   const [framePosition, setFramePosition] = useState({ current: 0, total: 0 })
   const [savedReplayPosition, setSavedReplayPosition] = useState(0)
+  const [loopEnabled, setLoopEnabled] = useState(false)
 
   const handleModeChange = (newMode: 'live' | 'replay') => {
     const currentMode = webSocketService.getConnectionMode();
@@ -78,6 +79,22 @@ export function ConnectionControls({
     setIsPlaying(false)
   }
 
+  // Toggle loop function
+  const toggleLoop = () => setLoopEnabled(!loopEnabled)
+
+  // Handle progress bar click
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const progressBar = e.currentTarget
+    const rect = progressBar.getBoundingClientRect()
+    const clickPosition = e.clientX - rect.left
+    const percentClicked = clickPosition / rect.width
+    const frameIndex = Math.floor(percentClicked * framePosition.total)
+    
+    if (webSocketService.jumpToFrame) {
+      webSocketService.jumpToFrame(frameIndex)
+    }
+  }
+
   // Update progress indicator
   useEffect(() => {
     if (mode === 'replay') {
@@ -86,12 +103,20 @@ export function ConnectionControls({
         const totalLength = webSocketService['replayData']?.length || 1
         setProgress(Math.min(100, (currentIndex / totalLength) * 100))
         setFramePosition({ current: currentIndex, total: totalLength })
+        
+        if (loopEnabled && currentIndex >= totalLength - 1) {
+          webSocketService.resetReplay()
+          setTimeout(() => {
+            webSocketService.resumeReplay()
+            setIsPlaying(true)
+          }, 100)
+        }
       }, 500)
       
       return () => clearInterval(interval)
     }
-  }, [mode, webSocketService])
-
+  }, [mode, webSocketService, loopEnabled])
+  
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2">
@@ -152,9 +177,12 @@ export function ConnectionControls({
         <div className="replay-panel pt-2 border-t border-zinc-700/40">
           {/* Progress Bar */}
           <div className="relative mb-1">
-            <div className="relative h-1 w-full bg-zinc-800 rounded-full mb-1 overflow-hidden">
+            <div 
+              className="relative h-1 w-full bg-zinc-800 rounded-full mb-1 overflow-hidden cursor-pointer"
+              onClick={handleProgressBarClick}
+            >
               <div 
-                className="absolute top-0 left-0 h-full bg-red-600 transition-all duration-500 ease-out"
+                className="absolute top-0 left-0 h-full bg-red-600 transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
@@ -214,6 +242,20 @@ export function ConnectionControls({
                 disabled={mode !== 'replay'}
               >
                 <FastForwardIcon className="w-5 h-5" />
+              </button>
+
+              {/* Loop Button */}
+              <button 
+                onClick={toggleLoop} 
+                className={`p-1.5 rounded transition-colors ${
+                  loopEnabled 
+                    ? 'bg-red-600 text-white' 
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
+                }`}
+                aria-label={loopEnabled ? 'Loop Enabled' : 'Loop Disabled'}
+                title={loopEnabled ? 'Loop Enabled' : 'Loop Disabled'}
+              >
+                <RepeatIcon className="w-4 h-4" />
               </button>
             </div>
             
