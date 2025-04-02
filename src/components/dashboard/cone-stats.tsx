@@ -17,7 +17,7 @@ export default function ConeStats({ data }: ConeStatsProps) {
             <p className="text-xs text-zinc-400">Yellow Cones</p>
           </div>
           <p className="text-2xl font-bold text-yellow-400">
-            {(data?.map_cones ? data.map_cones.filter((cone) => cone.color === 0).length : 0) || 0}
+            {(data?.map_cones ? data.map_cones.filter((cone) => cone.color === 1).length : 0) || 0}
           </p>
         </div>
         <div>
@@ -26,7 +26,7 @@ export default function ConeStats({ data }: ConeStatsProps) {
             <p className="text-xs text-zinc-400">Blue Cones</p>
           </div>
           <p className="text-2xl font-bold text-blue-400">
-            {(data?.map_cones ? data.map_cones.filter((cone) => cone.color === 1).length : 0) || 0}
+            {(data?.map_cones ? data.map_cones.filter((cone) => cone.color === 2).length : 0) || 0}
           </p>
         </div>
         <div>

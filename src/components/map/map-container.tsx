@@ -162,7 +162,7 @@ export default function MapContainer({ data }: MapContainerProps) {
                     : "bg-zinc-700/70 text-zinc-400"
                 }`}
               >
-                Green Points
+                MPC Predicted Trajectory
               </button>
             </div>
           </div>
