@@ -11,6 +11,7 @@
     <div id="throughput">Trasmettiamo a:</div>
     <div id="message"></div>
     <h2>Messaggi ricevuti da ROS 2:</h2>
+    <div id="counter">In attesa di dati..</div>
     <div id="output">In attesa di dati...</div>
     
     
@@ -20,7 +21,9 @@
         let latency = 0;
         let data_size = 0;
         let dataReceived = false; // Variabile per tracciare se sono arrivati dati
-
+        let counter = 0;
+        
+        // let timeOffset = 0;  // Differenza tra client e server
 
         socket.onopen = function() {
             console.log("WebSocket Open!");
@@ -37,7 +40,7 @@
             latency = Date.now() - jsonData['timestamp'] ;
             data_size = jsonData['Ndata'] || 0;
             dataReceived = true;
-
+            counter++;
             
             // message = {
             //     "time": Date.now()
@@ -51,8 +54,9 @@
                 document.getElementById("latency").innerText = latency.toFixed(2) + " ms";
                 // let throughput = latency > 0 ? ((data_size * 8 / latency) / 1e3).toFixed(2) : 0;
                 document.getElementById("throughput").innerText = (((data_size*8)/(latency/1e3))/1e6).toFixed(2) + " Mbps";
-                document.getElementById("data").innerText = data_size + " byte";
-
+                document.getElementById("data").innerText = (data_size/1000).toFixed(2) + " Kbyte";
+                document.getElementById("counter").innerText = counter + " packets";
+                counter = 0;
             }
             else{
                 document.getElementById("message").innerText = "Websocket closed";
