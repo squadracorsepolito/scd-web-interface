@@ -115,7 +115,7 @@ export default function GlobalMap({
     const vehicleY = -data.y * scale
 
     // Draw map cones
-    if (showCones){
+    if (showCones && data.map_cones){
       data.map_cones.forEach((cone) => {
         drawCone(ctx, cone.x * scale, -cone.y * scale, cone.color, zoom)
       })

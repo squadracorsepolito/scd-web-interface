@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { WebSocketService } from '@/utils/websocket-service'
-import { RewindIcon, FastForwardIcon, RepeatIcon } from 'lucide-react'
+import { RewindIcon, FastForwardIcon, RepeatIcon, TimerResetIcon } from 'lucide-react'
 
 interface ConnectionControlsProps {
   webSocketService: WebSocketService
@@ -193,8 +193,27 @@ export function ConnectionControls({
             </div>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1">
+          <div className="flex items-center justify-between">      
+            <div className="flex gap-1">        
+              {/* Reset Button */}
+              <button 
+                onClick={resetReplay} 
+                className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
+                aria-label="Reset"
+              >
+                <TimerResetIcon className="w-5 h-5" />
+              </button>
+  
+              {/* Rewind Button */}
+              <button 
+                onClick={() => webSocketService.rewindReplay()}
+                className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
+                aria-label="Rewind"
+                disabled={mode !== 'replay'}
+              >
+                <RewindIcon className="w-5 h-5" />
+              </button>
+
               {/* Play/Pause Button */}
               <button 
                 onClick={togglePlayPause} 
@@ -212,29 +231,8 @@ export function ConnectionControls({
                   </svg>
                 )}
               </button>
-              
-              {/* Reset Button */}
-              <button 
-                onClick={resetReplay} 
-                className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
-                aria-label="Reset"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 2v6h6"></path>
-                  <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
-                  <path d="M21 22v-6h-6"></path>
-                  <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
-                </svg>
-              </button>
-              <button 
-                onClick={() => webSocketService.rewindReplay()}
-                className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
-                aria-label="Rewind"
-                disabled={mode !== 'replay'}
-              >
-                <RewindIcon className="w-5 h-5" />
-              </button>
-
+                
+              {/* Fast Forward Button */}
               <button 
                 onClick={() => webSocketService.fastForwardReplay()}
                 className="p-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
