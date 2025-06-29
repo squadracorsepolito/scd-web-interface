@@ -12,6 +12,11 @@ type WebSocketCallbacks = {
 
 type ConnectionMode = 'live' | 'replay'
 
+type ConnectionConfig = {
+  ip: string
+  port: number
+}
+
 export class WebSocketService {
   private ws: WebSocket | null = null
   private reconnectAttempts = 0
@@ -28,14 +33,19 @@ export class WebSocketService {
   private replaySpeed = 1
   private replayPaused = false
   private intentionalDisconnect = false
+  private connectionConfig: ConnectionConfig = { ip: '127.0.0.1', port: 9090 }
 
   constructor(callbacks: WebSocketCallbacks) {
     this.callbacks = callbacks
     this.startTime = Date.now()
   }
 
-  async connect(mode: ConnectionMode = 'live', replayDataPath?: string) {
+  async connect(mode: ConnectionMode = 'live', replayDataPath?: string, config?: ConnectionConfig) {
     this.connectionMode = mode;
+    
+    if (config) {
+      this.connectionConfig = config;
+    }
     
     // Close any existing connection
     if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
@@ -77,7 +87,8 @@ export class WebSocketService {
     }
     
     this.intentionalDisconnect = false
-    this.ws = new WebSocket("ws://127.0.0.1:9090")
+    const wsUrl = `ws://${this.connectionConfig.ip}:${this.connectionConfig.port}`
+    this.ws = new WebSocket(wsUrl)
 
     this.ws.onopen = () => {
       console.log("Connected to WebSocket")
@@ -265,5 +276,13 @@ export class WebSocketService {
 
   connectWithCompressedReplay(replayDataPath: string) {
     this.connect('replay', replayDataPath);
+  }
+
+  getConnectionConfig(): ConnectionConfig {
+    return { ...this.connectionConfig }
+  }
+
+  setConnectionConfig(config: ConnectionConfig) {
+    this.connectionConfig = config
   }
 }

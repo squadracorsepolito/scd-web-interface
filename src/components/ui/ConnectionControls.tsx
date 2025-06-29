@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { WebSocketService } from '@/utils/websocket-service'
-import { RewindIcon, FastForwardIcon, RepeatIcon, TimerResetIcon } from 'lucide-react'
+import { RewindIcon, FastForwardIcon, RepeatIcon, TimerResetIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 
 interface ConnectionControlsProps {
   webSocketService: WebSocketService
@@ -22,6 +22,9 @@ export function ConnectionControls({
   const [framePosition, setFramePosition] = useState({ current: 0, total: 0 })
   const [savedReplayPosition, setSavedReplayPosition] = useState(0)
   const [loopEnabled, setLoopEnabled] = useState(false)
+  const [ip, setIp] = useState(webSocketService.getConnectionConfig().ip)
+  const [port, setPort] = useState(webSocketService.getConnectionConfig().port.toString())
+  const [settingsExpanded, setSettingsExpanded] = useState(false)
 
   const handleModeChange = (newMode: 'live' | 'replay') => {
     const currentMode = webSocketService.getConnectionMode();
@@ -39,7 +42,8 @@ export function ConnectionControls({
         setSavedReplayPosition(webSocketService['replayIndex'] || 0);
         webSocketService.pauseReplay();
       }
-      webSocketService.connect('live');
+      const config = { ip, port: parseInt(port) || 9090 }
+      webSocketService.connect('live', undefined, config);
     } else {
       // Switching to replay mode
       const dataPath = '/data/data_compact.json'
@@ -55,6 +59,14 @@ export function ConnectionControls({
     
     setMode(newMode);
     setIsPlaying(newMode === 'replay');
+  }
+
+  const handleConnectionConfigChange = () => {
+    const config = { ip, port: parseInt(port) || 9090 }
+    webSocketService.setConnectionConfig(config)
+    if (mode === 'live') {
+      webSocketService.connect('live', undefined, config)
+    }
   }
 
   // Play/pause controls for replay
@@ -148,7 +160,7 @@ export function ConnectionControls({
             </div>
           )}
         </div>
-        
+
         <div className="grid grid-cols-2 gap-1">
           <button 
             className={`px-3 py-1.5 rounded-l text-sm font-medium transition-colors ${
@@ -171,6 +183,66 @@ export function ConnectionControls({
             Data Replay
           </button>
         </div>
+
+        {/* Connection Settings */}
+        {mode === 'live' && (
+          <div className="space-y-2 p-2 bg-zinc-900/30 rounded-lg border border-zinc-700/50">
+            <div 
+              className="flex items-center justify-between cursor-pointer hover:bg-zinc-800/30 -m-2 p-2 rounded-lg transition-colors"
+              onClick={() => setSettingsExpanded(!settingsExpanded)}
+            >
+              <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wide">
+                Connection Settings
+              </h4>
+              <div className="p-1 rounded text-zinc-400 hover:text-zinc-300 transition-colors">
+                {settingsExpanded ? (
+                  <ChevronUpIcon className="w-4 h-4" />
+                ) : (
+                  <ChevronDownIcon className="w-4 h-4" />
+                )}
+              </div>
+            </div>
+            <div className={`transition-all duration-200 ease-in-out overflow-hidden ${
+              settingsExpanded ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <div className="grid grid-cols-[1fr_80px_auto] gap-2 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                    IP Address
+                  </label>
+                  <input
+                    type="text"
+                    value={ip}
+                    onChange={(e) => setIp(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-zinc-800 border border-zinc-600 rounded-md text-zinc-200 placeholder-zinc-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/20 focus:outline-none transition-colors"
+                    placeholder="127.0.0.1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                    Port
+                  </label>
+                  <input
+                    type="number"
+                    value={port}
+                    onChange={(e) => setPort(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-zinc-800 border border-zinc-600 rounded-md text-zinc-200 placeholder-zinc-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/20 focus:outline-none transition-colors"
+                    placeholder="9090"
+                    min="1"
+                    max="65535"
+                  />
+                </div>
+                <button
+                  onClick={handleConnectionConfigChange}
+                  disabled={connected}
+                  className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-md transition-colors disabled:cursor-not-allowed"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {mode === 'replay' && (

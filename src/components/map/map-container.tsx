@@ -190,10 +190,10 @@ export function MapContainer({ data, connectionMode = 'live' }: MapContainerProp
         <div className="absolute top-8 right-8 px-3 py-1.5 bg-black/70 border border-zinc-700 rounded-md">
           <div className="flex flex-col">
             <span className="text-sm font-mono">
-              {ping !== null ? `Ping: ${ping.toFixed(2)}ms` : 'Calculating ping...'}
+              {ping !== null ? `Ping: ${ping.toFixed(2)} ms` : 'Calculating ping...'}
             </span>
             <span className="text-sm font-mono">
-              {bandwidth !== null ? `Bandwidth: ${bandwidth.toFixed(2)}KB/s` : 'Calculating bandwidth...'}
+              {bandwidth !== null ? `Bandwidth: ${bandwidth.toFixed(2)} KB/s` : 'Calculating bandwidth...'}
             </span>
           </div>
         </div>
