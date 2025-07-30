@@ -1,15 +1,19 @@
 "use client"
 
+import { useState } from "react"
 import { type VehicleData } from "@/types/vehicle-types"
 import VehicleMetrics from "./vehicle-metrics"
 import SteeringWheel from "./steering-wheel"
 import ConeStats from "./cone-stats"
 import SpeedChart from "../charts/speed-chart"
 import ThrottleChart from "../charts/throttle-chart"
+import AuthModal from "./auth-modal"
 import type { DataPoint } from "@/types/vehicle-types"
 import Image from "next/image"
 import { WebSocketService } from "@/utils/websocket-service"
 import { ConnectionControls } from '@/components/ui/ConnectionControls'
+import { Button } from "@/components/ui/button"
+import { TestTube } from "lucide-react"
 
 type VehicleDashboardProps = {
   data: VehicleData | null
@@ -19,6 +23,7 @@ type VehicleDashboardProps = {
   speedData: DataPoint[]
   throttleData: DataPoint[]
   webSocketService: WebSocketService | null
+  onViewChange: (view: 'dashboard' | 'tests') => void
 }
 
 export default function VehicleDashboard({
@@ -29,7 +34,26 @@ export default function VehicleDashboard({
   speedData,
   throttleData,
   webSocketService,
+  onViewChange,
 }: VehicleDashboardProps) {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+
+  const handleTestsClick = () => {
+    // Check if user is already authenticated
+    const token = localStorage.getItem('authToken')
+    if (token) {
+      // Already authenticated, go directly to tests
+      onViewChange('tests')
+    } else {
+      // Not authenticated, show auth modal
+      setIsAuthModalOpen(true)
+    }
+  }
+
+  const handleAuthSuccess = () => {
+    // Authentication successful, switch to tests view
+    onViewChange('tests')
+  }
   return (
     <div
       className="w-1/4 p-6 bg-zinc-900/80 backdrop-blur-md border-r border-zinc-800/40 overflow-y-auto"
@@ -40,17 +64,27 @@ export default function VehicleDashboard({
     >
       <div className="space-y-6">
         <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="relative w-32 h-6 shrink-0">
-              <Image 
-                src="/SCD.svg" 
-                alt="Squadra Corse Driverless" 
-                fill 
-                className="object-contain"
-                priority
-              />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="relative w-32 h-6 shrink-0">
+                <Image 
+                  src="/SCD.svg" 
+                  alt="Squadra Corse Driverless" 
+                  fill 
+                  className="object-contain"
+                  priority
+                />
+              </div>
+              <h1 className="text-2xl font-bold text-white">Web Interface</h1>
             </div>
-            <h1 className="text-2xl font-bold text-white">Web Interface</h1>
+            <Button
+              onClick={handleTestsClick}
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 text-sm"
+            >
+              <TestTube className="w-4 h-4 mr-1" />
+              Tests
+            </Button>
           </div>
           <div className="h-0.5 w-full bg-gradient-to-r from-red-600 to-red-900"></div>
         </div>
@@ -86,6 +120,12 @@ export default function VehicleDashboard({
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   )
 }

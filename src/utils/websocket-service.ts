@@ -32,6 +32,7 @@ export class WebSocketService {
   private replayInterval: NodeJS.Timeout | null = null
   private replaySpeed = 1
   private replayPaused = false
+  private isTestReplay = false
   private intentionalDisconnect = false
   private connectionConfig: ConnectionConfig = { ip: '127.0.0.1', port: 9090 }
 
@@ -53,6 +54,7 @@ export class WebSocketService {
     }
     
     if (mode === 'live') {
+      this.isTestReplay = false;
       this.connectToLive();
     } else if (mode === 'replay' && replayDataPath) {
       try {
@@ -67,7 +69,8 @@ export class WebSocketService {
         if (isCompressed) {
           jsonData = await uncompressJsonData(jsonData);
         }
-        
+
+        this.isTestReplay = false;
         this.replayData = jsonData;
         this.replayIndex = 0;
         this.replayPaused = false;
@@ -159,7 +162,15 @@ export class WebSocketService {
     
     this.replayPaused = false
     
-    const interval = 100 / this.replaySpeed
+    // Use different timing for test replays vs file replays
+    const baseInterval = this.isTestReplay ? 16.67 : 100
+    const interval = baseInterval / this.replaySpeed
+    
+    if (this.isTestReplay) {
+      console.log(`Starting test replay at 60 packets/second (${interval.toFixed(1)}ms interval)`)
+    } else {
+      console.log(`Starting file replay at ${(1000/interval).toFixed(1)} packets/second (${interval.toFixed(1)}ms interval)`)
+    }
     
     this.replayInterval = setInterval(() => {
       if (this.replayPaused) return
@@ -276,6 +287,27 @@ export class WebSocketService {
 
   connectWithCompressedReplay(replayDataPath: string) {
     this.connect('replay', replayDataPath);
+  }
+
+  startTestReplay(testData: VehicleData[]) {
+    // Close any existing connection
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+      this.ws.close();
+    }
+
+    // Set up test replay mode with faster timing (60 packets/second)
+    this.connectionMode = 'replay';
+    this.isTestReplay = true;
+    this.replayData = testData;
+    this.replayIndex = 0;
+    this.replayPaused = false;
+    this.startTime = Date.now();
+    this.speedData = [];
+    this.throttleData = [];
+
+    // Simulate connection
+    this.callbacks.onConnect();
+    this.startReplay();
   }
 
   getConnectionConfig(): ConnectionConfig {
