@@ -1,0 +1,8 @@
+{
+  "name": "scd-web-interface",
+  "compatibility_date": "2025-07-31",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "pages_build_output_dir": ".vercel/output/static"
+}
