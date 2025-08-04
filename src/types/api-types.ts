@@ -12,6 +12,7 @@ export type Rosbag = {
   db_file?: string
   yaml_file?: string
   json_file?: string
+  zip_file?: string
 }
 
 export type RosbagUpload = {
@@ -84,6 +85,13 @@ export type ValidationError = {
 export type ApiResponse<T> = {
   data?: T
   error?: string
+}
+
+export type PaginatedResponse<T> = {
+  count: number
+  next: string | null
+  previous: string | null
+  results: T[]
 }
 
 // Authentication

@@ -162,32 +162,85 @@ export class WebSocketService {
     
     this.replayPaused = false
     
-    // Use different timing for test replays vs file replays
-    const baseInterval = this.isTestReplay ? 16.67 : 100
-    const interval = baseInterval / this.replaySpeed
-    
-    if (this.isTestReplay) {
-      console.log(`Starting test replay at 60 packets/second (${interval.toFixed(1)}ms interval)`)
+    if (this.isTestReplay && this.replayData.length > 0) {
+      // For test replays, use actual timestamps from the data
+      console.log(`Starting test replay using actual timestamps from data`)
+      this.scheduleNextReplayFrame()
     } else {
-      console.log(`Starting file replay at ${(1000/interval).toFixed(1)} packets/second (${interval.toFixed(1)}ms interval)`)
-    }
-    
-    this.replayInterval = setInterval(() => {
-      if (this.replayPaused) return
+      // Use different timing for file replays vs test replays (fallback)
+      const baseInterval = this.isTestReplay ? 16.67 : 100
+      const interval = baseInterval / this.replaySpeed
       
-      if (this.replayIndex < this.replayData.length) {
-        const data = this.replayData[this.replayIndex]
-        this.processData(data)
-        this.replayIndex++
+      if (this.isTestReplay) {
+        console.log(`Starting test replay at 60 packets/second (${interval.toFixed(1)}ms interval) - fallback mode`)
       } else {
-        this.pauseReplay()
-        console.log("Replay finished")
+        console.log(`Starting file replay at ${(1000/interval).toFixed(1)} packets/second (${interval.toFixed(1)}ms interval)`)
       }
-    }, interval)
+      
+      this.replayInterval = setInterval(() => {
+        if (this.replayPaused) return
+        
+        if (this.replayIndex < this.replayData.length) {
+          const data = this.replayData[this.replayIndex]
+          this.processData(data)
+          this.replayIndex++
+        } else {
+          this.pauseReplay()
+          console.log("Replay finished")
+        }
+      }, interval)
+    }
+  }
+
+  private scheduleNextReplayFrame() {
+    if (this.replayPaused || this.replayIndex >= this.replayData.length) {
+      if (this.replayIndex >= this.replayData.length) {
+        console.log("Replay finished")
+        this.pauseReplay()
+      }
+      return
+    }
+
+    const currentData = this.replayData[this.replayIndex]
+    
+    // Process current frame
+    this.processData(currentData)
+    this.replayIndex++
+
+    // Calculate delay to next frame
+    if (this.replayIndex < this.replayData.length) {
+      const nextData = this.replayData[this.replayIndex]
+      const currentTimestamp = currentData.timestamp
+      const nextTimestamp = nextData.timestamp
+      
+      // Calculate the time difference between frames in milliseconds
+      let timeDiff = nextTimestamp - currentTimestamp
+      
+      // Handle edge cases
+      if (timeDiff <= 0 || timeDiff > 10000) { // If invalid timestamp diff, fallback to 16.67ms (60fps)
+        timeDiff = 16.67
+      }
+      
+      // Apply replay speed modifier
+      const adjustedDelay = timeDiff / this.replaySpeed
+      
+      // Schedule next frame
+      this.replayInterval = setTimeout(() => {
+        this.scheduleNextReplayFrame()
+      }, adjustedDelay)
+    } else {
+      console.log("Replay finished")
+      this.pauseReplay()
+    }
   }
 
   pauseReplay() {
     this.replayPaused = true
+    if (this.replayInterval) {
+      clearInterval(this.replayInterval)
+      clearTimeout(this.replayInterval)
+      this.replayInterval = null
+    }
   }
 
   resumeReplay() {
@@ -197,7 +250,11 @@ export class WebSocketService {
       }
       this.replayPaused = false
       if (!this.replayInterval) {
-        this.startReplay()
+        if (this.isTestReplay && this.replayData.length > 0) {
+          this.scheduleNextReplayFrame()
+        } else {
+          this.startReplay()
+        }
       }
     }
   }
@@ -258,6 +315,7 @@ export class WebSocketService {
   disconnect() {
     if (this.replayInterval) {
       clearInterval(this.replayInterval)
+      clearTimeout(this.replayInterval)
       this.replayInterval = null
     }
 

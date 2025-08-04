@@ -1,4 +1,4 @@
-import { Rosbag, RosbagUpload, RosbagJsonData, ApiResponse } from '@/types/api-types'
+import { Rosbag, RosbagUpload, RosbagJsonData, ApiResponse, PaginatedResponse } from '@/types/api-types'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -51,9 +51,14 @@ async function apiRequest<T>(
 
 // Rosbags API
 export const rosbagsApi = {
-  // Get list of all rosbags
-  getList: async (): Promise<ApiResponse<Rosbag[]>> => {
-    return apiRequest<Rosbag[]>('/api/rosbags/get_list/')
+  // Get list of all rosbags with pagination
+  getList: async (page: number = 1, pageSize: number = 10): Promise<ApiResponse<PaginatedResponse<Rosbag>>> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString()
+    })
+    const response = await apiRequest<PaginatedResponse<Rosbag>>(`/api/rosbags/?${params}`)
+    return response
   },
 
   // Upload a new rosbag with progress tracking
@@ -87,7 +92,7 @@ export const rosbagsApi = {
     }
 
     try {
-      const url = `${API_BASE_URL}/api/upload/`
+      const url = `${API_BASE_URL}/api/rosbags/`
       
       return new Promise((resolve) => {
         const xhr = new XMLHttpRequest()
@@ -157,19 +162,19 @@ export const rosbagsApi = {
 
   // Delete a rosbag
   delete: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiRequest<{ message: string }>(`/api/${id}/delete/`, {
+    return apiRequest<{ message: string }>(`/api/rosbags/${id}/`, {
       method: 'DELETE',
     })
   },
 
   // Get rosbag JSON data
   getJsonData: async (id: number): Promise<ApiResponse<RosbagJsonData>> => {
-    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/`)
+    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/detail/`)
   },
 
   // Process rosbag to generate JSON data
   processRosbag: async (id: number): Promise<ApiResponse<RosbagJsonData>> => {
-    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/`, {
+    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/detail/`, {
       method: 'GET'
     })
   },
@@ -206,7 +211,7 @@ export const rosbagsApi = {
     }
 
     try {
-      const url = `${API_BASE_URL}/api/${id}/update/`
+      const url = `${API_BASE_URL}/api/rosbags/${id}/`
       
       return new Promise((resolve) => {
         const xhr = new XMLHttpRequest()
@@ -318,7 +323,7 @@ export const rosbagsApi = {
     }
 
     try {
-      const url = `${API_BASE_URL}/api/${id}/update/`
+      const url = `${API_BASE_URL}/api/rosbags/${id}/`
       
       return new Promise((resolve) => {
         const xhr = new XMLHttpRequest()

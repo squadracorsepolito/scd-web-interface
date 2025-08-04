@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
-import { Upload, FileText, Play, Trash2, Download, ArrowLeft, AlertCircle, LogOut, Edit } from "lucide-react"
+import { Upload, FileText, Play, Trash2, Download, ArrowLeft, AlertCircle, LogOut, Edit, Filter, Search, X } from "lucide-react"
 import { rosbagsApi, formatDate } from "@/lib/api"
-import { Rosbag, RosbagUpload } from "@/types/api-types"
+import { Rosbag, RosbagUpload, PaginatedResponse } from "@/types/api-types"
 import { readFileAsArrayBuffer, createBlobFromArrayBuffer } from "@/utils/file-utils"
 import { WebSocketService } from "@/utils/websocket-service"
 import { VehicleData } from "@/types/vehicle-types"
 import { uncompressJsonData, type CompactVehicleData } from "@/utils/json-uncompressor"
+import TestFilterModal, { FilterCriteria } from "./test-filter-modal"
+import { Pagination, PaginationInfo } from "@/components/ui/pagination"
 
 type EditData = {
   rosbag_file?: File
@@ -61,23 +63,151 @@ export default function TestsDashboard({
   onRefreshHandlerReady
 }: TestsDashboardProps) {
   const [rosbags, setRosbags] = useState<Rosbag[]>([])
+  const [filteredRosbags, setFilteredRosbags] = useState<Rosbag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processingTests, setProcessingTests] = useState<Set<number>>(new Set())
   const [username, setUsername] = useState<string>('')
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+  const [activeFilters, setActiveFilters] = useState<FilterCriteria | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
+  const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Rosbag> | null>(null)
+
+  // Filter function
+  const applyFiltersToData = useCallback((data: Rosbag[], filters: FilterCriteria | null, search: string) => {
+    let filtered = [...data]
+
+    // Apply search term
+    if (search.trim()) {
+      const searchLower = search.toLowerCase()
+      filtered = filtered.filter(rosbag =>
+        rosbag.track_name.toLowerCase().includes(searchLower) ||
+        rosbag.mission_name.toLowerCase().includes(searchLower) ||
+        rosbag.id.toString().includes(searchLower)
+      )
+    }
+
+    // Apply filters
+    if (filters) {
+      // Track name filter
+      if (filters.trackName) {
+        filtered = filtered.filter(r => r.track_name === filters.trackName)
+      }
+
+      // Mission name filter
+      if (filters.missionName) {
+        filtered = filtered.filter(r => r.mission_name === filters.missionName)
+      }
+
+      // Status filter
+      if (filters.status !== 'all') {
+        filtered = filtered.filter(r => {
+          const isProcessing = processingTests.has(r.id)
+          
+          if (filters.status === 'processing') return isProcessing
+          if (isProcessing) return false // Exclude processing from other statuses
+          
+          if (filters.status === 'completed') return r.json_file && r.is_successful
+          if (filters.status === 'failed') return r.json_file && !r.is_successful
+          if (filters.status === 'ready') return !r.json_file && r.yaml_file && r.db_file
+          if (filters.status === 'missing') return !r.json_file && (!r.yaml_file || !r.db_file)
+          
+          return true
+        })
+      }
+
+      // Success status filter
+      if (filters.isSuccessful !== 'all') {
+        filtered = filtered.filter(r => r.is_successful === (filters.isSuccessful === 'true'))
+      }
+
+      // Date range filter
+      if (filters.dateRange.from || filters.dateRange.to) {
+        filtered = filtered.filter(r => {
+          const testDate = new Date(r.timestamp)
+          const fromDate = filters.dateRange.from ? new Date(filters.dateRange.from) : null
+          const toDate = filters.dateRange.to ? new Date(filters.dateRange.to + 'T23:59:59') : null
+          
+          if (fromDate && testDate < fromDate) return false
+          if (toDate && testDate > toDate) return false
+          
+          return true
+        })
+      }
+
+      // Lap time range filter
+      if (filters.lapTimeRange.min !== null || filters.lapTimeRange.max !== null) {
+        filtered = filtered.filter(r => {
+          if (filters.lapTimeRange.min !== null && r.avg_lap_time < filters.lapTimeRange.min) return false
+          if (filters.lapTimeRange.max !== null && r.avg_lap_time > filters.lapTimeRange.max) return false
+          return true
+        })
+      }
+
+      // Cones range filters
+      if (filters.conesRange.yellowMin !== null || filters.conesRange.yellowMax !== null) {
+        filtered = filtered.filter(r => {
+          if (filters.conesRange.yellowMin !== null && r.number_of_evaluated_cones_yellow < filters.conesRange.yellowMin) return false
+          if (filters.conesRange.yellowMax !== null && r.number_of_evaluated_cones_yellow > filters.conesRange.yellowMax) return false
+          return true
+        })
+      }
+
+      if (filters.conesRange.blueMin !== null || filters.conesRange.blueMax !== null) {
+        filtered = filtered.filter(r => {
+          if (filters.conesRange.blueMin !== null && r.number_of_evaluated_cones_blue < filters.conesRange.blueMin) return false
+          if (filters.conesRange.blueMax !== null && r.number_of_evaluated_cones_blue > filters.conesRange.blueMax) return false
+          return true
+        })
+      }
+
+      // Laps range filter
+      if (filters.lapsRange.min !== null || filters.lapsRange.max !== null) {
+        filtered = filtered.filter(r => {
+          const laps = r.number_of_laps_completed
+          if (laps == null) return false
+          if (filters.lapsRange.min !== null && laps < filters.lapsRange.min) return false
+          if (filters.lapsRange.max !== null && laps > filters.lapsRange.max) return false
+          return true
+        })
+      }
+
+      // File presence filters
+      const fileFilters = filters.hasFiles
+      if (fileFilters.rosbag !== null) {
+        filtered = filtered.filter(r => (r.rosbag_file != null) === fileFilters.rosbag)
+      }
+      if (fileFilters.yaml !== null) {
+        filtered = filtered.filter(r => (r.yaml_file != null) === fileFilters.yaml)
+      }
+      if (fileFilters.db !== null) {
+        filtered = filtered.filter(r => (r.db_file != null) === fileFilters.db)
+      }
+      if (fileFilters.json !== null) {
+        filtered = filtered.filter(r => (r.json_file != null) === fileFilters.json)
+      }
+    }
+
+    setFilteredRosbags(filtered)
+  }, [processingTests])
 
   const loadRosbags = useCallback(async () => {
     setLoading(true)
     setError(null)
     
     try {
-      const response = await rosbagsApi.getList()
+      const response = await rosbagsApi.getList(currentPage, pageSize)
       if (response.data) {
-        // Sort by timestamp descending (newest first)
-        const sortedRosbags = response.data.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-        setRosbags(sortedRosbags)
+        setPaginatedData(response.data)
+        setTotalCount(response.data.count)
+        setRosbags(response.data.results)
+        // Apply current filters to new data
+        applyFiltersToData(response.data.results, activeFilters, searchTerm)
       } else {
         setError(response.error || 'Failed to load tests')
       }
@@ -87,7 +217,42 @@ export default function TestsDashboard({
     } finally {
       setLoading(false)
     }
+  }, [currentPage, pageSize, activeFilters, searchTerm, applyFiltersToData])
+
+  // Apply filters when data or filters change
+  useEffect(() => {
+    applyFiltersToData(rosbags, activeFilters, searchTerm)
+  }, [rosbags, activeFilters, searchTerm, applyFiltersToData])
+
+  const handleApplyFilters = useCallback((filters: FilterCriteria) => {
+    setActiveFilters(filters)
+    setIsFilterModalOpen(false)
   }, [])
+
+  const handleClearFilters = useCallback(() => {
+    setActiveFilters(null)
+    setSearchTerm('')
+    setCurrentPage(1) // Reset to first page when clearing filters
+  }, [])
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page)
+  }, [])
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize)
+    setCurrentPage(1) // Reset to first page when changing page size
+  }, [])
+
+  // Create pagination info object
+  const paginationInfo: PaginationInfo = {
+    count: totalCount,
+    currentPage,
+    pageSize,
+    hasNext: paginatedData?.next !== null,
+    hasPrevious: paginatedData?.previous !== null
+  }
 
   // Load rosbags on component mount
   useEffect(() => {
@@ -139,13 +304,9 @@ export default function TestsDashboard({
       
       const response = await rosbagsApi.upload(rosbagData, onProgress)
       if (response.data) {
-        // Add new rosbag and re-sort by timestamp
-        setRosbags(prev => {
-          const updated = [response.data!, ...prev]
-          return updated.sort((a, b) => 
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          )
-        })
+        // Reset to first page and reload data to show the new upload
+        setCurrentPage(1)
+        await loadRosbags()
         // Auto-close the modal after successful upload
         setIsUploadModalOpen(false)
       } else {
@@ -155,7 +316,7 @@ export default function TestsDashboard({
       console.error('Upload error:', error)
       throw error
     }
-  }, [setIsUploadModalOpen])
+  }, [setIsUploadModalOpen, loadRosbags])
 
   // Update handler
   const handleUpdate = useCallback(async (id: number, data: Partial<EditData>, onProgress?: (progress: number) => void) => {
@@ -234,15 +395,8 @@ export default function TestsDashboard({
       const response = await rosbagsApi.partialUpdate(id, rosbagData, onProgress)
       if (response.data) {
         console.log("Update successful:", response.data)
-        // Update the rosbag in the local state and maintain sort order
-        setRosbags(prev => {
-          const updated = prev.map(rosbag => 
-            rosbag.id === id ? response.data! : rosbag
-          )
-          return updated.sort((a, b) => 
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          )
-        })
+        // Reload data to show the updated test
+        await loadRosbags()
         // Auto-close the modal after successful update
         setIsEditModalOpen(false)
         setEditingRosbag(null)
@@ -253,23 +407,18 @@ export default function TestsDashboard({
       console.error('Update error:', error)
       throw error
     }
-  }, [setIsEditModalOpen, setEditingRosbag])
+  }, [setIsEditModalOpen, setEditingRosbag, loadRosbags])
 
   // Handle successful edit
-  const handleEditSuccess = useCallback((updatedRosbag: Rosbag) => {
-    // Update the rosbag in the local state and maintain sort order
-    setRosbags(prev => {
-      const updated = prev.map(rosbag => 
-        rosbag.id === updatedRosbag.id ? updatedRosbag : rosbag
-      )
-      return updated.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )
-    })
+  const handleEditSuccess = useCallback(async (updatedRosbag: Rosbag) => {
+    console.log('Edit successful for rosbag:', updatedRosbag.id)
+    
+    // Reload data to show the updated test
+    await loadRosbags()
     // Close modal
     setIsEditModalOpen(false)
     setEditingRosbag(null)
-  }, [setIsEditModalOpen, setEditingRosbag])
+  }, [setIsEditModalOpen, setEditingRosbag, loadRosbags])
 
   // Provide upload handler to parent component
   useEffect(() => {
@@ -341,7 +490,8 @@ export default function TestsDashboard({
     try {
       const response = await rosbagsApi.delete(id)
       if (!response.data) {
-        setRosbags(prev => prev.filter(rosbag => rosbag.id !== id))
+        // Reload data to show updated list after deletion
+        await loadRosbags()
       } else {
         alert(response.error || 'Failed to delete test')
       }
@@ -410,27 +560,9 @@ export default function TestsDashboard({
     }
 
     try {
-      // Find the rosbag to check if it has a json_file
-      const rosbag = rosbags.find(r => r.id === id)
-      let response
-
-      if (rosbag?.json_file) {
-        // If json_file exists, fetch it directly using the file path
-        console.log('Fetching JSON file from path:', rosbag.json_file)
-        const fileResponse = await rosbagsApi.downloadFile(rosbag.json_file)
-        if (fileResponse.data) {
-          // Convert blob to JSON
-          const text = await fileResponse.data.text()
-          const jsonData = JSON.parse(text)
-          response = { data: jsonData }
-        } else {
-          response = { error: fileResponse.error }
-        }
-      } else {
-        // Fall back to the original API endpoint
-        console.log('Fetching data from API endpoint for rosbag:', id)
-        response = await rosbagsApi.getJsonData(id)
-      }
+      // Use the detail endpoint to get the processed data
+      console.log('Fetching data from detail endpoint for rosbag:', id)
+      const response = await rosbagsApi.getJsonData(id)
 
       if (response.data) {
         console.log('Test data structure:', response.data)
@@ -447,7 +579,8 @@ export default function TestsDashboard({
           
           convertedData = uncompressedData.map((state, index) => ({
             ...state,
-            timestamp: Date.now() + index * 100,
+            // Keep original timestamp from data, only fallback if missing
+            timestamp: state.timestamp || (Date.now() + index * 100),
             Ndata: state.Ndata || index
           }))
         } else {
@@ -461,7 +594,8 @@ export default function TestsDashboard({
           // Update timestamps and Ndata for replay timing
           convertedData = convertedData.map((item, index) => ({
             ...item,
-            timestamp: Date.now() + index * 100,
+            // Keep original timestamp from data, only fallback if missing
+            timestamp: item.timestamp || (Date.now() + index * 100),
             Ndata: item.Ndata || index
           }))
         }
@@ -509,13 +643,22 @@ export default function TestsDashboard({
   }
 
   const getStatistics = () => {
-    const completed = rosbags.filter(r => r.json_file && r.is_successful).length
-    const failed = rosbags.filter(r => r.json_file && !r.is_successful).length
-    const ready = rosbags.filter(r => !r.json_file && r.yaml_file && r.db_file).length
-    const missingData = rosbags.filter(r => !r.json_file && (!r.yaml_file || !r.db_file)).length
+    const dataToUse = filteredRosbags.length > 0 || activeFilters || searchTerm ? filteredRosbags : rosbags
+    const completed = dataToUse.filter(r => r.json_file && r.is_successful).length
+    const failed = dataToUse.filter(r => r.json_file && !r.is_successful).length
+    const ready = dataToUse.filter(r => !r.json_file && r.yaml_file && r.db_file).length
+    const missingData = dataToUse.filter(r => !r.json_file && (!r.yaml_file || !r.db_file)).length
     const processing = processingTests.size
 
-    return { completed, failed, ready, missingData, processing }
+    return { 
+      completed, 
+      failed, 
+      ready, 
+      missingData, 
+      processing, 
+      total: dataToUse.length,
+      isCurrentPageOnly: true
+    }
   }
 
   const getServerInfo = () => {
@@ -538,14 +681,16 @@ export default function TestsDashboard({
   }
 
   return (
-    <div
-      className="w-1/4 p-6 bg-zinc-900/80 backdrop-blur-md border-r border-zinc-800/40 overflow-y-auto"
-      style={{
-        scrollbarWidth: "thin",
-        scrollbarColor: "#4B5563 #1F2937",
-      }}
-    >
-      <div className="space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div
+        className="w-full h-full max-w-7xl mx-4 my-4 bg-zinc-900/95 backdrop-blur-md border border-zinc-800/40 rounded-lg overflow-y-auto shadow-2xl"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#4B5563 #1F2937",
+        }}
+      >
+        <div className="p-6">
+          <div className="space-y-6">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -627,24 +772,108 @@ export default function TestsDashboard({
           <div className="p-4 rounded-lg bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/40">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-medium text-zinc-300">Test Files</h2>
-              <Button
-                onClick={loadRosbags}
-                size="sm"
-                variant="ghost"
-                className="text-zinc-400 hover:text-zinc-300"
-              >
-                Refresh
-              </Button>
-            </div>
-            
-            {rosbags.length === 0 ? (
-              <div className="text-center py-8 text-zinc-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No test files uploaded yet</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setIsFilterModalOpen(true)}
+                  size="sm"
+                  variant="ghost"
+                  className={`text-zinc-400 hover:text-zinc-300 ${activeFilters ? 'text-red-400' : ''}`}
+                  title="Filter tests"
+                >
+                  <Filter className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={loadRosbags}
+                  size="sm"
+                  variant="ghost"
+                  className="text-zinc-400 hover:text-zinc-300"
+                >
+                  Refresh
+                </Button>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {rosbags.map((rosbag) => {
+            </div>
+
+            {/* Search Bar */}
+            <div className="mb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search by track, mission, or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 bg-zinc-900/50 border border-zinc-600/50 rounded-md text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-transparent text-sm"
+                />
+                {(searchTerm || activeFilters) && (
+                  <Button
+                    onClick={handleClearFilters}
+                    size="sm"
+                    variant="ghost"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 text-zinc-400 hover:text-zinc-300"
+                    title="Clear search and filters"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Active Filters Display */}
+            {activeFilters && (
+              <div className="mb-3 p-2 bg-zinc-900/50 rounded border border-zinc-600/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-400">
+                    Filters active - Showing {filteredRosbags.length} of {rosbags.length} tests
+                  </span>
+                  <Button
+                    onClick={handleClearFilters}
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 text-xs text-zinc-400 hover:text-red-400"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Top Pagination */}
+            {totalCount > 0 && (
+              <div className="mb-4">
+                <Pagination
+                  paginationInfo={paginationInfo}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  disabled={loading}
+                />
+              </div>
+            )}
+            
+            {(() => {
+              const displayData = filteredRosbags.length > 0 || activeFilters || searchTerm ? filteredRosbags : rosbags
+              
+              return displayData.length === 0 ? (
+                <div className="text-center py-8 text-zinc-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  {rosbags.length === 0 ? (
+                    <p>No test files uploaded yet</p>
+                  ) : (
+                    <div>
+                      <p className="mb-2">No tests match your criteria</p>
+                      <Button
+                        onClick={handleClearFilters}
+                        size="sm"
+                        variant="outline"
+                        className="border-zinc-600/50 text-zinc-400 hover:bg-zinc-700/50"
+                      >
+                        Clear Filters
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {displayData.map((rosbag) => {
                   const isProcessing = processingTests.has(rosbag.id)
                   const statusInfo = getStatusInfo(rosbag, isProcessing)
                   
@@ -750,7 +979,8 @@ export default function TestsDashboard({
                           </>
                         )}
 
-                        {rosbag.rosbag_file && (
+                        {/* Commented out individual file download buttons as requested */}
+                        {/* {rosbag.rosbag_file && (
                           <Button
                             onClick={() => handleDownloadFile(rosbag.rosbag_file!, rosbag.rosbag_file!.split('/').pop() || `rosbag_${rosbag.id}.bag`)}
                             size="sm"
@@ -761,9 +991,9 @@ export default function TestsDashboard({
                             <Download className="w-3 h-3" />
                             BAG
                           </Button>
-                        )}
+                        )} */}
 
-                        {rosbag.yaml_file && (
+                        {/* {rosbag.yaml_file && (
                           <Button
                             onClick={() => handleDownloadFile(rosbag.yaml_file!, rosbag.yaml_file!.split('/').pop() || `config_${rosbag.id}.yaml`)}
                             size="sm"
@@ -774,9 +1004,9 @@ export default function TestsDashboard({
                             <Download className="w-3 h-3" />
                             YAML
                           </Button>
-                        )}
+                        )} */}
 
-                        {rosbag.db_file && (
+                        {/* {rosbag.db_file && (
                           <Button
                             onClick={() => handleDownloadFile(rosbag.db_file!, rosbag.db_file!.split('/').pop() || `database_${rosbag.id}.db`)}
                             size="sm"
@@ -787,18 +1017,63 @@ export default function TestsDashboard({
                             <Download className="w-3 h-3" />
                             DB
                           </Button>
+                        )} */}
+
+                        {/* {rosbag.rosbag_file && (
+                          <Button
+                            onClick={() => handleDownloadFile(rosbag.rosbag_file!, rosbag.rosbag_file!.split('/').pop() || `archive_${rosbag.id}.zip`)}
+                            size="sm"
+                            variant="outline"
+                            className="bg-indigo-600/20 border-indigo-600/30 text-indigo-400 hover:bg-indigo-600/30"
+                            title="Download ZIP file"
+                          >
+                            <Download className="w-3 h-3" />
+                            ZIP
+                          </Button>
+                        )} */}
+
+                        {/* New download logic: ROSBAG button if rosbag_file exists and json_file doesn't exist */}
+                        {!rosbag.json_file && rosbag.rosbag_file && (
+                          <Button
+                            onClick={() => handleDownloadFile(`/api/rosbags/${rosbag.id}/detail/`, rosbag.rosbag_file!.split('/').pop() || `rosbag_${rosbag.id}.bag`)}
+                            size="sm"
+                            variant="outline"
+                            className="bg-purple-600/20 border-purple-600/30 text-purple-400 hover:bg-purple-600/30"
+                            title="Download ROSBAG file"
+                          >
+                            <Download className="w-3 h-3" />
+                            ROS BAG
+                          </Button>
                         )}
                       </div>
                     </div>
                   )
                 })}
+                </div>
+              )
+            })()}
+
+            {/* Bottom Pagination */}
+            {totalCount > 0 && (
+              <div className="mt-4">
+                <Pagination
+                  paginationInfo={paginationInfo}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  disabled={loading}
+                />
               </div>
             )}
           </div>
 
           {/* Test Statistics */}
           <div className="p-4 rounded-lg bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/40">
-            <h2 className="text-lg font-medium text-zinc-300 mb-3">Statistics</h2>
+            <h2 className="text-lg font-medium text-zinc-300 mb-3">
+              Statistics {(activeFilters || searchTerm) && `(${stats.total} filtered)`}
+              {stats.isCurrentPageOnly && !activeFilters && !searchTerm && (
+                <span className="text-xs text-zinc-500 block">Current page only</span>
+              )}
+            </h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
@@ -823,6 +1098,13 @@ export default function TestsDashboard({
                 </div>
               )}
             </div>
+            {(activeFilters || searchTerm) && (
+              <div className="mt-3 pt-3 border-t border-zinc-700/50">
+                <p className="text-xs text-zinc-400 text-center">
+                  Showing {stats.total} of {totalCount} total tests
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Server Information */}
@@ -835,6 +1117,16 @@ export default function TestsDashboard({
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Filter Modal */}
+      <TestFilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        onApplyFilters={handleApplyFilters}
+        rosbags={rosbags}
+      />
         </div>
       </div>
     </div>
