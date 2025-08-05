@@ -39,7 +39,7 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
 
   // File state
   const [files, setFiles] = useState<{
-    rosbag_file?: File
+    zip_file?: File
     yaml_file?: File
     db_file?: File
   }>({})
@@ -145,7 +145,7 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
     const newErrors = { ...errors }
 
     // Clear existing file errors
-    delete newErrors.rosbag_file
+    delete newErrors.zip_file
     delete newErrors.yaml_file
     delete newErrors.db_file
 
@@ -161,9 +161,17 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
         const validation = validateFile(file, fileType)
         
         if (validation.isValid) {
-          newFiles[`${fileType}_file` as keyof typeof newFiles] = file
+          if (fileType === 'rosbag') {
+            newFiles.zip_file = file
+          } else {
+            newFiles[`${fileType}_file` as keyof typeof newFiles] = file
+          }
         } else {
-          newErrors[`${fileType}_file` as keyof FormErrors] = validation.error
+          if (fileType === 'rosbag') {
+            newErrors.zip_file = validation.error
+          } else {
+            newErrors[`${fileType}_file` as keyof FormErrors] = validation.error
+          }
         }
       } else {
         // Show general error for unsupported files
@@ -220,7 +228,7 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
   }
 
   // Remove a specific file
-  const removeFile = (fileType: 'rosbag_file' | 'yaml_file' | 'db_file') => {
+  const removeFile = (fileType: 'zip_file' | 'yaml_file' | 'db_file') => {
     setFiles(prev => {
       const newFiles = { ...prev }
       delete newFiles[fileType]
@@ -298,7 +306,7 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
     }
 
     // Add file changes
-    if (files.rosbag_file) changes.rosbag_file = files.rosbag_file
+    if (files.zip_file) changes.zip_file = files.zip_file
     if (files.yaml_file) changes.yaml_file = files.yaml_file
     if (files.db_file) changes.db_file = files.db_file
 
@@ -612,12 +620,12 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
               </div>
 
               {/* File Errors */}
-              {(errors.rosbag_file || errors.yaml_file || errors.db_file) && (
+              {(errors.zip_file || errors.yaml_file || errors.db_file) && (
                 <div className="space-y-2">
-                  {errors.rosbag_file && (
+                  {errors.zip_file && (
                     <div className="flex items-center gap-2 text-sm text-red-400">
                       <AlertCircle className="w-4 h-4" />
-                      <span>Rosbag file: {errors.rosbag_file}</span>
+                      <span>Rosbag file: {errors.zip_file}</span>
                     </div>
                   )}
                   {errors.yaml_file && (
@@ -636,20 +644,20 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
               )}
 
               {/* Selected Files Display */}
-              {(files.rosbag_file || files.yaml_file || files.db_file) && (
+              {(files.zip_file || files.yaml_file || files.db_file) && (
                 <div className="bg-zinc-800/50 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-zinc-300 mb-3">New Files Selected:</h4>
                   <div className="space-y-2">
-                    {files.rosbag_file && (
+                    {files.zip_file && (
                       <div className="flex items-center justify-between gap-2 text-sm bg-zinc-700/50 rounded p-2">
                         <div className="flex items-center gap-2">
                           <File className="w-4 h-4 text-blue-400" />
                           <span className="text-zinc-300">Rosbag:</span>
-                          <span className="text-zinc-400">{files.rosbag_file.name}</span>
-                          <span className="text-zinc-500 text-xs">({formatFileSize(files.rosbag_file.size)})</span>
+                          <span className="text-zinc-400">{files.zip_file.name}</span>
+                          <span className="text-zinc-500 text-xs">({formatFileSize(files.zip_file.size)})</span>
                         </div>
                         <Button
-                          onClick={() => removeFile('rosbag_file')}
+                          onClick={() => removeFile('zip_file')}
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"

@@ -281,7 +281,7 @@ export default function TestsDashboard({
       // Read file contents as binary data and add them if they exist
       if (data.rosbag_file) {
         const rosbagContent = await readFileAsArrayBuffer(data.rosbag_file)
-        rosbagData.rosbag_file = createBlobFromArrayBuffer(rosbagContent, data.rosbag_file.type)
+        rosbagData.zip_file = createBlobFromArrayBuffer(rosbagContent, data.rosbag_file.type)
         console.log("Added rosbag file content:", data.rosbag_file.name, "Size:", rosbagContent.byteLength, "bytes", "Type:", data.rosbag_file.type)
         console.log("First 100 bytes:", new Uint8Array(rosbagContent.slice(0, 100)))
       }
@@ -367,7 +367,7 @@ export default function TestsDashboard({
       // Read file contents as binary data and add them if they exist
       if (data.rosbag_file) {
         const rosbagContent = await readFileAsArrayBuffer(data.rosbag_file)
-        rosbagData.rosbag_file = createBlobFromArrayBuffer(rosbagContent, data.rosbag_file.type)
+        rosbagData.zip_file = createBlobFromArrayBuffer(rosbagContent, data.rosbag_file.type)
         console.log("Added rosbag file content:", data.rosbag_file.name, "Size:", rosbagContent.byteLength, "bytes", "Type:", data.rosbag_file.type)
       }
       if (data.yaml_file) {
