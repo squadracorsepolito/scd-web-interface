@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 export interface PaginationInfo {
   count: number
   currentPage: number
+  pageSize: number
   hasNext: boolean
   hasPrevious: boolean
 }
@@ -13,6 +14,7 @@ export interface PaginationInfo {
 export interface PaginationProps {
   paginationInfo: PaginationInfo
   onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
   disabled?: boolean
   className?: string
 }
@@ -20,12 +22,15 @@ export interface PaginationProps {
 export function Pagination({
   paginationInfo,
   onPageChange,
+  onPageSizeChange,
   disabled = false,
   className = ""
 }: PaginationProps) {
-  const { count, currentPage, hasNext, hasPrevious } = paginationInfo
-
-  const totalPages = Math.ceil(count / 10)
+  const { count, currentPage, pageSize, hasNext, hasPrevious } = paginationInfo
+  
+  const totalPages = Math.ceil(count / pageSize)
+  const startItem = (currentPage - 1) * pageSize + 1
+  const endItem = Math.min(currentPage * pageSize, count)
 
   const handleFirstPage = () => onPageChange(1)
   const handlePreviousPage = () => onPageChange(currentPage - 1)
@@ -75,6 +80,27 @@ export function Pagination({
 
   return (
     <div className={`flex flex-col gap-3 ${className}`}>
+      {/* Page size selector */}
+      <div className="flex items-center justify-between text-sm text-zinc-400">
+        <span>
+          Showing {startItem}-{endItem} of {count} tests
+        </span>
+        <div className="flex items-center gap-2">
+          <span>Tests per page:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            disabled={disabled}
+            className="bg-zinc-800 border border-zinc-600/50 rounded px-2 py-1 text-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
+      </div>
+
       {/* Pagination controls */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1">
