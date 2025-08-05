@@ -15,7 +15,7 @@ type UploadFormData = {
   avg_lap_time: number
   is_successful: boolean
   number_of_laps_completed?: number
-  rosbag_file?: File
+  zip_file?: File
   yaml_file?: File
   db_file?: File
 }
@@ -138,7 +138,7 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
       
       switch (extension) {
         case 'zip':
-          setFormData((prev: UploadFormData) => ({ ...prev, rosbag_file: file }))
+          setFormData((prev: UploadFormData) => ({ ...prev, zip_file: file }))
           break
         case 'yaml':
         case 'yml':
@@ -158,7 +158,7 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
     // Clear any existing file validation errors
     setFieldErrors((prev) => {
       const newErrors = { ...prev }
-      delete newErrors.rosbag_file
+      delete newErrors.zip_file
       delete newErrors.yaml_file
       delete newErrors.db_file
       delete newErrors.files
@@ -167,7 +167,7 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
   }
 
   // Remove a specific file
-  const removeFile = (fileType: 'rosbag_file' | 'yaml_file' | 'db_file') => {
+  const removeFile = (fileType: 'zip_file' | 'yaml_file' | 'db_file') => {
     setFormData((prev: UploadFormData) => ({ ...prev, [fileType]: undefined }))
   }
 
@@ -193,7 +193,7 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
         avg_lap_time: formData.avg_lap_time,
         is_successful: formData.is_successful,
         number_of_laps_completed: formData.number_of_laps_completed,
-        rosbag_file: formData.rosbag_file,
+        zip_file: formData.zip_file,
         yaml_file: formData.yaml_file,
         db_file: formData.db_file,
       }
@@ -468,11 +468,11 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
 
               {/* File Display and Management */}
               <div className="mt-4 space-y-3">
-                {formData.rosbag_file && (
+                {formData.zip_file && (
                   <FileDisplay
-                    file={formData.rosbag_file}
+                    file={formData.zip_file}
                     label="ZIP Archive"
-                    onRemove={() => removeFile('rosbag_file')}
+                    onRemove={() => removeFile('zip_file')}
                     disabled={isUploading}
                   />
                 )}
@@ -495,7 +495,7 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
                   />
                 )}
                 
-                {!formData.rosbag_file && !formData.yaml_file && !formData.db_file && (
+                {!formData.zip_file && !formData.yaml_file && !formData.db_file && (
                   <div className="p-3 bg-zinc-800/50 border border-zinc-700 rounded-md">
                     <p className="text-sm text-zinc-400 text-center">
                       No files selected - files are optional for test submission

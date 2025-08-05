@@ -81,8 +81,8 @@ export const rosbagsApi = {
     }
     
     // Add files
-    if (rosbagData.rosbag_file) {
-      formData.append('rosbag_file', rosbagData.rosbag_file)
+    if (rosbagData.zip_file) {
+      formData.append('zip_file', rosbagData.zip_file)
     }
     if (rosbagData.yaml_file) {
       formData.append('yaml_file', rosbagData.yaml_file)
@@ -200,8 +200,8 @@ export const rosbagsApi = {
     }
     
     // Add files
-    if (rosbagData.rosbag_file) {
-      formData.append('rosbag_file', rosbagData.rosbag_file)
+    if (rosbagData.zip_file) {
+      formData.append('zip_file', rosbagData.zip_file)
     }
     if (rosbagData.yaml_file) {
       formData.append('yaml_file', rosbagData.yaml_file)
@@ -312,8 +312,8 @@ export const rosbagsApi = {
     }
     
     // Add files
-    if (rosbagData.rosbag_file) {
-      formData.append('rosbag_file', rosbagData.rosbag_file)
+    if (rosbagData.zip_file) {
+      formData.append('zip_file', rosbagData.zip_file)
     }
     if (rosbagData.yaml_file) {
       formData.append('yaml_file', rosbagData.yaml_file)

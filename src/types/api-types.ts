@@ -23,7 +23,7 @@ export type RosbagUpload = {
   number_of_evaluated_cones_blue: number
   is_successful: boolean
   avg_lap_time: number
-  rosbag_file?: File | Blob
+  zip_file?: File | Blob
   yaml_file?: File | Blob
   db_file?: File | Blob
 }
