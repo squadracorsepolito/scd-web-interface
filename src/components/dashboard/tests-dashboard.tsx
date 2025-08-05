@@ -74,7 +74,6 @@ export default function TestsDashboard({
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
   const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Rosbag> | null>(null)
 
@@ -201,7 +200,7 @@ export default function TestsDashboard({
     setError(null)
     
     try {
-      const response = await rosbagsApi.getList(currentPage, pageSize)
+      const response = await rosbagsApi.getList(currentPage)
       if (response.data) {
         setPaginatedData(response.data)
         setTotalCount(response.data.count)
@@ -217,7 +216,7 @@ export default function TestsDashboard({
     } finally {
       setLoading(false)
     }
-  }, [currentPage, pageSize, activeFilters, searchTerm, applyFiltersToData])
+  }, [currentPage, activeFilters, searchTerm, applyFiltersToData])
 
   // Apply filters when data or filters change
   useEffect(() => {
@@ -240,16 +239,10 @@ export default function TestsDashboard({
     setCurrentPage(page)
   }, [])
 
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize)
-    setCurrentPage(1) // Reset to first page when changing page size
-  }, [])
-
   // Create pagination info object
   const paginationInfo: PaginationInfo = {
     count: totalCount,
     currentPage,
-    pageSize,
     hasNext: paginatedData?.next !== null,
     hasPrevious: paginatedData?.previous !== null
   }
@@ -843,7 +836,6 @@ export default function TestsDashboard({
                 <Pagination
                   paginationInfo={paginationInfo}
                   onPageChange={handlePageChange}
-                  onPageSizeChange={handlePageSizeChange}
                   disabled={loading}
                 />
               </div>
@@ -1059,7 +1051,6 @@ export default function TestsDashboard({
                 <Pagination
                   paginationInfo={paginationInfo}
                   onPageChange={handlePageChange}
-                  onPageSizeChange={handlePageSizeChange}
                   disabled={loading}
                 />
               </div>

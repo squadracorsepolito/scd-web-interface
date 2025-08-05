@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useCallback } from "react"
 import type { VehicleData } from "@/types/vehicle-types"
 
 type GlobalMapProps = {
@@ -36,11 +36,7 @@ export default function GlobalMap({
 }: GlobalMapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  useEffect(() => {
-    drawMap()
-  }, [data, zoom, pan, showCones, showWaypoints, showWaypointIndicators, showActiveCones, showGreenPoints])
-
-  const drawMap = () => {
+  const drawMap = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -197,7 +193,7 @@ export default function GlobalMap({
         const startX = last.x * scale
         const startY = -last.y * scale
         const endX = first.x * scale
-        const endY = -first.y * scale
+        const endY = first.y * scale
 
         // Create gradient for connecting line
         const gradient = ctx.createLinearGradient(startX, startY, endX, endY)
@@ -254,7 +250,11 @@ export default function GlobalMap({
     drawVehicle(ctx, vehicleX, vehicleY, data.yaw)
 
     ctx.restore()
-  }
+  }, [data, zoom, pan, showCones, showWaypoints, showWaypointIndicators, showActiveCones, showGreenPoints])
+
+  useEffect(() => {
+    drawMap()
+  }, [drawMap])
 
   const drawCone = (
     ctx: CanvasRenderingContext2D,

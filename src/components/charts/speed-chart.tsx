@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useCallback } from "react"
 import type { DataPoint } from "@/types/vehicle-types"
 
 type SpeedChartProps = {
@@ -10,11 +10,7 @@ type SpeedChartProps = {
 export default function SpeedChart({ data }: SpeedChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  useEffect(() => {
-    drawChart()
-  }, [data])
-
-  const drawChart = () => {
+  const drawChart = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || data.length < 2) return
 
@@ -180,7 +176,11 @@ export default function SpeedChart({ data }: SpeedChartProps) {
     ctx.fillStyle = "#FFFFFF"
     ctx.textAlign = "left"
     ctx.fillText("Speed", legendX + 25, legendY)
-  }
+  }, [data])
+
+  useEffect(() => {
+    drawChart()
+  }, [drawChart])
 
   return <canvas ref={canvasRef} className="w-full h-full" />
 }

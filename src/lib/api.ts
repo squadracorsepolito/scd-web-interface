@@ -52,10 +52,10 @@ async function apiRequest<T>(
 // Rosbags API
 export const rosbagsApi = {
   // Get list of all rosbags with pagination
-  getList: async (page: number = 1, pageSize: number = 10): Promise<ApiResponse<PaginatedResponse<Rosbag>>> => {
+  getList: async (page: number = 1): Promise<ApiResponse<PaginatedResponse<Rosbag>>> => {
     const params = new URLSearchParams({
       page: page.toString(),
-      page_size: pageSize.toString()
+      // page_size: pageSize.toString()
     })
     const response = await apiRequest<PaginatedResponse<Rosbag>>(`/api/rosbags/?${params}`)
     return response

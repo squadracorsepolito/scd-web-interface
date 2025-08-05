@@ -42,7 +42,7 @@ export function MapContainer({ data, connectionMode = 'live' }: MapContainerProp
         }
       }
     }
-  }, [data]);
+  }, [data, lastTimestamp]);
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
 
