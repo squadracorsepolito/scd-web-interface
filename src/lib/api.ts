@@ -169,12 +169,12 @@ export const rosbagsApi = {
 
   // Get rosbag JSON data
   getJsonData: async (id: number): Promise<ApiResponse<RosbagJsonData>> => {
-    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/detail/`)
+    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/json/`)
   },
 
   // Process rosbag to generate JSON data
   processRosbag: async (id: number): Promise<ApiResponse<RosbagJsonData>> => {
-    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/detail/`, {
+    return apiRequest<RosbagJsonData>(`/api/rosbags/${id}/json/`, {
       method: 'GET'
     })
   },

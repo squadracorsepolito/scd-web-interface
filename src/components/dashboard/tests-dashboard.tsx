@@ -560,8 +560,8 @@ export default function TestsDashboard({
     }
 
     try {
-      // Use the detail endpoint to get the processed data
-      console.log('Fetching data from detail endpoint for rosbag:', id)
+      // Use the json endpoint to get the processed data
+      console.log('Fetching data from json endpoint for rosbag:', id)
       const response = await rosbagsApi.getJsonData(id)
 
       if (response.data) {
@@ -1035,7 +1035,7 @@ export default function TestsDashboard({
                         {/* New download logic: ROSBAG button if rosbag_file exists and json_file doesn't exist */}
                         {!rosbag.json_file && rosbag.rosbag_file && (
                           <Button
-                            onClick={() => handleDownloadFile(`/api/rosbags/${rosbag.id}/detail/`, rosbag.rosbag_file!.split('/').pop() || `rosbag_${rosbag.id}.bag`)}
+                            onClick={() => handleDownloadFile(`/api/rosbags/${rosbag.id}/ros/`, rosbag.rosbag_file!.split('/').pop() || `rosbag_${rosbag.id}.bag`)}
                             size="sm"
                             variant="outline"
                             className="bg-purple-600/20 border-purple-600/30 text-purple-400 hover:bg-purple-600/30"
