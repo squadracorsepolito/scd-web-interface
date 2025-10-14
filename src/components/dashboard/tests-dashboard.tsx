@@ -1033,7 +1033,7 @@ export default function TestsDashboard({
                         )} */}
 
                         {/* New download logic: ROSBAG button if rosbag_file exists and json_file doesn't exist */}
-                        {!rosbag.json_file && rosbag.rosbag_file && (
+                        {rosbag.rosbag_file && (
                           <Button
                             onClick={() => handleDownloadFile(`/api/rosbags/${rosbag.id}/ros/`, rosbag.rosbag_file!.split('/').pop() || `rosbag_${rosbag.id}.bag`)}
                             size="sm"

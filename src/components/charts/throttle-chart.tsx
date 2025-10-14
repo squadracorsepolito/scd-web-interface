@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import type { DataPoint } from "@/types/vehicle-types"
 
 type ThrottleChartProps = {
@@ -10,11 +10,7 @@ type ThrottleChartProps = {
 export default function ThrottleChart({ data }: ThrottleChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  useEffect(() => {
-    drawChart()
-  }, [data])
-
-  const drawChart = () => {
+  const drawChart = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || data.length < 2) return
 
@@ -44,11 +40,11 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     const minThrottle = -1
     const maxThrottle = Math.max(1, ...data.map((d) => d.value))
 
-    let minTime = Math.min(...data.map((d) => d.timestamp))
+    const minTime = Math.min(...data.map((d) => d.timestamp))
     const maxTime = Math.max(...data.map((d) => d.timestamp))
-    
-    if (maxTime - minTime < 30) {
-      minTime = maxTime - 5
+    const timeRange = maxTime - minTime
+    if (timeRange <= 0) {
+      return
     }
 
     // Draw Y-axis
@@ -98,7 +94,7 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     const xSteps = 5
     for (let i = 0; i <= xSteps; i++) {
       const x = padding.left + (chartWidth * i) / xSteps
-      const timeValue = minTime + (i / xSteps) * (maxTime - minTime)
+  const timeValue = minTime + (i / xSteps) * timeRange
 
       // Grid line
       ctx.beginPath()
@@ -138,7 +134,7 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     ctx.lineWidth = 2
 
     data.forEach((point, index) => {
-      const x = padding.left + ((point.timestamp - minTime) / (maxTime - minTime)) * chartWidth
+      const x = padding.left + ((point.timestamp - minTime) / timeRange) * chartWidth
       const y = padding.top + chartHeight - ((point.value - minThrottle) / (maxThrottle - minThrottle)) * chartHeight
 
       if (index === 0) {
@@ -180,7 +176,11 @@ export default function ThrottleChart({ data }: ThrottleChartProps) {
     ctx.fillStyle = "#FFFFFF"
     ctx.textAlign = "left"
     ctx.fillText("Throttle", legendX + 25, legendY)
-  }
+  }, [data])
+
+  useEffect(() => {
+    drawChart()
+  }, [drawChart])
 
   return <canvas ref={canvasRef} className="w-full h-full" />
 }
