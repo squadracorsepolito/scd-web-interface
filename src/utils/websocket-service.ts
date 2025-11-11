@@ -35,10 +35,14 @@ export class WebSocketService {
   private isTestReplay = false
   private intentionalDisconnect = false
   private connectionConfig: ConnectionConfig = { ip: '127.0.0.1', port: 9090 }
+  private liveSnapshot: VehicleData | null = null
+  private static readonly STATIC_MAP_STORAGE_KEY = 'scd-web-static-map-data'
+  private staticMapData: Pick<VehicleData, 'map_cones' | 'active_cones' | 'waypoint_array' | 'green_points'> | null = null
 
   constructor(callbacks: WebSocketCallbacks) {
     this.callbacks = callbacks
     this.startTime = Date.now()
+    this.loadStaticMapData()
   }
 
   async connect(mode: ConnectionMode = 'live', replayDataPath?: string, config?: ConnectionConfig) {
@@ -55,6 +59,7 @@ export class WebSocketService {
     
     if (mode === 'live') {
       this.isTestReplay = false;
+      this.resetLiveSessionState();
       this.connectToLive();
     } else if (mode === 'replay' && replayDataPath) {
       try {
@@ -101,7 +106,7 @@ export class WebSocketService {
 
     this.ws.onmessage = (event) => {
       try {
-        const receivedData = JSON.parse(event.data) as VehicleData
+        const receivedData = JSON.parse(event.data) as Partial<VehicleData>
         this.processData(receivedData)
       } catch (error) {
         console.error("Error parsing WebSocket data:", error)
@@ -132,22 +137,36 @@ export class WebSocketService {
     }
   }
 
-  private processData(receivedData: VehicleData) {
-    this.callbacks.onData(receivedData)
+  private processData(receivedData: VehicleData | Partial<VehicleData>) {
+    const normalizedData = this.connectionMode === 'live'
+      ? this.mergeLivePacket(receivedData)
+      : receivedData as VehicleData
+
+    if (!normalizedData) {
+      return
+    }
+
+    const payloadForCallback: VehicleData = this.connectionMode === 'live'
+      ? { ...normalizedData }
+      : normalizedData as VehicleData
+
+    this.callbacks.onData(payloadForCallback)
 
     const now = Date.now()
     const timeInSeconds = (now - this.startTime) / 1000
 
-    if (receivedData.speed !== undefined) {
-      this.speedData.push({ value: receivedData.speed, timestamp: timeInSeconds })
+    const hasSpeedUpdate = this.connectionMode !== 'live' || Object.prototype.hasOwnProperty.call(receivedData, 'speed')
+    if (hasSpeedUpdate && normalizedData.speed !== undefined) {
+      this.speedData.push({ value: normalizedData.speed, timestamp: timeInSeconds })
       if (this.speedData.length > MAX_DATA_POINTS) {
         this.speedData = this.speedData.slice(-MAX_DATA_POINTS)
       }
       this.callbacks.onSpeedData([...this.speedData])
     }
 
-    if (receivedData.throttle !== undefined) {
-      this.throttleData.push({ value: receivedData.throttle, timestamp: timeInSeconds })
+    const hasThrottleUpdate = this.connectionMode !== 'live' || Object.prototype.hasOwnProperty.call(receivedData, 'throttle')
+    if (hasThrottleUpdate && normalizedData.throttle !== undefined) {
+      this.throttleData.push({ value: normalizedData.throttle, timestamp: timeInSeconds })
       if (this.throttleData.length > MAX_DATA_POINTS) {
         this.throttleData = this.throttleData.slice(-MAX_DATA_POINTS)
       }
@@ -329,6 +348,8 @@ export class WebSocketService {
       clearTimeout(this.reconnectTimeout)
       this.reconnectTimeout = null
     }
+
+    this.clearLiveSnapshot()
   }
 
   getConnectionMode(): ConnectionMode {
@@ -374,5 +395,188 @@ export class WebSocketService {
 
   setConnectionConfig(config: ConnectionConfig) {
     this.connectionConfig = config
+  }
+
+  private mergeLivePacket(update: VehicleData | Partial<VehicleData>): VehicleData | null {
+    if (!this.liveSnapshot) {
+      const initialPacket = this.applyStaticDataToInitialPacket(update)
+      if (!initialPacket || !this.isValidInitialLivePacket(initialPacket)) {
+        console.warn("Initial live packet missing required map data; waiting for full payload before rendering.")
+        return null
+      }
+      this.liveSnapshot = initialPacket
+      this.updateStaticMapData(initialPacket)
+      return this.liveSnapshot
+    }
+
+    const snapshot = this.liveSnapshot
+
+    this.liveSnapshot = {
+      ...snapshot,
+      ...update,
+      map_cones: this.resolveArrayField('map_cones', update, snapshot.map_cones),
+      active_cones: this.resolveArrayField('active_cones', update, snapshot.active_cones),
+      waypoint_array: this.resolveArrayField('waypoint_array', update, snapshot.waypoint_array),
+      green_points: this.resolveArrayField('green_points', update, snapshot.green_points)
+    }
+
+    this.updateStaticMapData(this.liveSnapshot)
+
+    return this.liveSnapshot
+  }
+
+  private isValidInitialLivePacket(packet: VehicleData | Partial<VehicleData>): packet is VehicleData {
+    if (!packet) {
+      return false
+    }
+
+    const requiredArrayKeys: Array<keyof VehicleData> = ['map_cones', 'active_cones', 'waypoint_array']
+
+    return requiredArrayKeys.every((key) => Array.isArray((packet as VehicleData)[key]))
+  }
+
+  private applyStaticDataToInitialPacket(update: VehicleData | Partial<VehicleData>): VehicleData | null {
+    const basePacket = { ...(update as VehicleData) }
+
+    const mapCones = this.resolveInitialRequiredArray('map_cones', update)
+    const activeCones = this.resolveInitialRequiredArray('active_cones', update)
+    const waypoints = this.resolveInitialRequiredArray('waypoint_array', update)
+
+    if (!mapCones || !activeCones || !waypoints) {
+      return null
+    }
+
+    basePacket.map_cones = mapCones
+    basePacket.active_cones = activeCones
+    basePacket.waypoint_array = waypoints
+    basePacket.green_points = this.resolveArrayField('green_points', update, basePacket.green_points)
+
+    return basePacket
+  }
+
+  private resolveInitialRequiredArray<K extends 'map_cones' | 'active_cones' | 'waypoint_array'>(
+    field: K,
+    update: VehicleData | Partial<VehicleData>
+  ): VehicleData[K] | null {
+    const updateValue = (update as VehicleData)[field]
+    if (Array.isArray(updateValue) && updateValue.length > 0) {
+      return updateValue
+    }
+
+    const cachedValue = this.staticMapData?.[field]
+    if (Array.isArray(cachedValue) && cachedValue.length > 0) {
+      return cachedValue
+    }
+
+    if (Array.isArray(updateValue)) {
+      return updateValue
+    }
+
+    return null
+  }
+
+  private resolveArrayField<K extends keyof Pick<VehicleData, 'map_cones' | 'active_cones' | 'waypoint_array' | 'green_points'>>(
+    field: K,
+    update: VehicleData | Partial<VehicleData>,
+    previousValue: VehicleData[K]
+  ): VehicleData[K] {
+    if (Object.prototype.hasOwnProperty.call(update, field)) {
+      const newValue = (update as VehicleData)[field]
+      if (Array.isArray(newValue)) {
+        if (newValue.length > 0) {
+          return newValue
+        }
+        if (field === 'green_points') {
+          return (previousValue ?? this.staticMapData?.green_points) as VehicleData[K]
+        }
+        return (previousValue ?? this.staticMapData?.[field] ?? []) as VehicleData[K]
+      }
+      if (newValue) {
+        return newValue
+      }
+    }
+
+    if (field === 'green_points') {
+      return (previousValue ?? this.staticMapData?.green_points) as VehicleData[K]
+    }
+
+    const cachedValue = this.staticMapData?.[field]
+    if (Array.isArray(cachedValue) && cachedValue.length > 0) {
+      return cachedValue as VehicleData[K]
+    }
+
+    return previousValue
+  }
+
+  private loadStaticMapData() {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      const raw = window.localStorage.getItem(WebSocketService.STATIC_MAP_STORAGE_KEY)
+      if (!raw) {
+        return
+      }
+
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        const { map_cones, active_cones, waypoint_array, green_points } = parsed as Partial<VehicleData>
+        if (Array.isArray(map_cones) && Array.isArray(active_cones) && Array.isArray(waypoint_array)) {
+          this.staticMapData = {
+            map_cones,
+            active_cones,
+            waypoint_array,
+            green_points: Array.isArray(green_points) ? green_points : undefined
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load cached map data from storage:', error)
+    }
+  }
+
+  private persistStaticMapData() {
+    if (typeof window === 'undefined' || !this.staticMapData) {
+      return
+    }
+
+    try {
+      window.localStorage.setItem(
+        WebSocketService.STATIC_MAP_STORAGE_KEY,
+        JSON.stringify(this.staticMapData)
+      )
+    } catch (error) {
+      console.warn('Failed to persist map data to storage:', error)
+    }
+  }
+
+  private updateStaticMapData(data: VehicleData) {
+    if (this.connectionMode !== 'live') {
+      return
+    }
+
+    const nextStaticData = {
+      map_cones: Array.isArray(data.map_cones) && data.map_cones.length > 0 ? data.map_cones : this.staticMapData?.map_cones ?? [],
+      active_cones: Array.isArray(data.active_cones) && data.active_cones.length > 0 ? data.active_cones : this.staticMapData?.active_cones ?? [],
+      waypoint_array: Array.isArray(data.waypoint_array) && data.waypoint_array.length > 0 ? data.waypoint_array : this.staticMapData?.waypoint_array ?? [],
+      green_points: Array.isArray(data.green_points) && data.green_points.length > 0
+        ? data.green_points
+        : this.staticMapData?.green_points
+    }
+
+    this.staticMapData = nextStaticData
+    this.persistStaticMapData()
+  }
+
+  private resetLiveSessionState() {
+    this.startTime = Date.now()
+    this.speedData = []
+    this.throttleData = []
+    this.clearLiveSnapshot()
+  }
+
+  private clearLiveSnapshot() {
+    this.liveSnapshot = null
   }
 }
