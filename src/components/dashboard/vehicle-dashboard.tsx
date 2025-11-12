@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { type VehicleData } from "@/types/vehicle-types"
+import { type VehicleData, type LapLogEntry } from "@/types/vehicle-types"
 import VehicleMetrics from "./vehicle-metrics"
 import SteeringWheel from "./steering-wheel"
 import ConeStats from "./cone-stats"
@@ -14,6 +14,7 @@ import { WebSocketService } from "@/utils/websocket-service"
 import { ConnectionControls } from '@/components/ui/ConnectionControls'
 import { Button } from "@/components/ui/button"
 import { TestTube } from "lucide-react"
+import LapLogList from "@/components/dashboard/lap-log-list"
 
 type VehicleDashboardProps = {
   data: VehicleData | null
@@ -22,6 +23,7 @@ type VehicleDashboardProps = {
   reconnectAttempt: number
   speedData: DataPoint[]
   throttleData: DataPoint[]
+  lapLogs: LapLogEntry[]
   webSocketService: WebSocketService | null
   onViewChange: (view: 'dashboard' | 'tests') => void
 }
@@ -33,6 +35,7 @@ export default function VehicleDashboard({
   reconnectAttempt,
   speedData,
   throttleData,
+  lapLogs,
   webSocketService,
   onViewChange,
 }: VehicleDashboardProps) {
@@ -118,6 +121,8 @@ export default function VehicleDashboard({
               <ThrottleChart data={throttleData} />
             </div>
           </div>
+
+          <LapLogList entries={lapLogs} />
         </div>
       </div>
 

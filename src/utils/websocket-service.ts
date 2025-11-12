@@ -8,6 +8,15 @@ type WebSocketCallbacks = {
   onData: (data: VehicleData) => void
   onSpeedData: (data: DataPoint[]) => void
   onThrottleData: (data: DataPoint[]) => void
+  onLapLog?: (payload: LapLogMessage) => void
+}
+
+type IncomingPacket = Partial<VehicleData> & { log?: unknown }
+
+type LapLogMessage = {
+  payload: Record<string, unknown>
+  raw: string
+  lapNumber: number | null
 }
 
 type ConnectionMode = 'live' | 'replay'
@@ -106,7 +115,7 @@ export class WebSocketService {
 
     this.ws.onmessage = (event) => {
       try {
-        const receivedData = JSON.parse(event.data) as Partial<VehicleData>
+  const receivedData = JSON.parse(event.data) as IncomingPacket
         this.processData(receivedData)
       } catch (error) {
         console.error("Error parsing WebSocket data:", error)
@@ -137,10 +146,20 @@ export class WebSocketService {
     }
   }
 
-  private processData(receivedData: VehicleData | Partial<VehicleData>) {
+  private processData(receivedData: IncomingPacket) {
+    const lapLogMessage = this.extractLapLogPayload(receivedData)
+    if (lapLogMessage && this.callbacks.onLapLog) {
+      this.callbacks.onLapLog(lapLogMessage)
+    }
+
+    const vehicleUpdate = this.stripLogFromPacket(receivedData)
+    if (!this.hasVehiclePayload(vehicleUpdate)) {
+      return
+    }
+
     const normalizedData = this.connectionMode === 'live'
-      ? this.mergeLivePacket(receivedData)
-      : receivedData as VehicleData
+      ? this.mergeLivePacket(vehicleUpdate)
+      : vehicleUpdate as VehicleData
 
     if (!normalizedData) {
       return
@@ -172,6 +191,72 @@ export class WebSocketService {
       }
       this.callbacks.onThrottleData([...this.throttleData])
     }
+  }
+
+  private extractLapLogPayload(packet: IncomingPacket): LapLogMessage | null {
+    if (!Object.prototype.hasOwnProperty.call(packet, 'log')) {
+      return null
+    }
+
+    const rawLog = packet.log
+    if (rawLog === null || rawLog === undefined) {
+      return null
+    }
+
+    let parsedLog: Record<string, unknown> | null = null
+    let rawRepresentation = ''
+
+    if (typeof rawLog === 'string') {
+      try {
+        const candidate = JSON.parse(rawLog)
+        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+          parsedLog = candidate as Record<string, unknown>
+          rawRepresentation = rawLog
+        }
+      } catch (error) {
+        console.warn('Failed to parse log payload string:', error)
+        return null
+      }
+    } else if (typeof rawLog === 'object' && !Array.isArray(rawLog)) {
+      parsedLog = rawLog as Record<string, unknown>
+      rawRepresentation = JSON.stringify(rawLog)
+    }
+
+    if (!parsedLog) {
+      return null
+    }
+
+    const lapTime = parsedLog.lap_time
+    const isEmptyLapTime =
+      lapTime === null ||
+      lapTime === undefined ||
+      (typeof lapTime === 'string' && lapTime.trim().length === 0)
+
+    if (isEmptyLapTime) {
+      return null
+    }
+
+    const rawLapValue = typeof packet.lap === 'number' ? Math.floor(packet.lap) : null
+    const previousLap = rawLapValue !== null ? rawLapValue - 1 : null
+    const resolvedLapNumber = previousLap !== null ? Math.max(1, previousLap) : null
+
+    return {
+      payload: parsedLog,
+      raw: rawRepresentation || JSON.stringify(parsedLog),
+      lapNumber: resolvedLapNumber,
+    }
+  }
+
+  private stripLogFromPacket(packet: IncomingPacket): Partial<VehicleData> {
+    const vehicleFields = { ...packet } as Partial<VehicleData> & { log?: unknown }
+    if ('log' in vehicleFields) {
+      delete vehicleFields.log
+    }
+    return vehicleFields
+  }
+
+  private hasVehiclePayload(update: Partial<VehicleData>): boolean {
+    return Object.keys(update).length > 0
   }
 
   private startReplay() {

@@ -34,6 +34,13 @@ export type DataPoint = {
   timestamp: number
 }
 
+export type LapLogEntry = {
+  lapNumber: number
+  data: Record<string, unknown>
+  raw: string
+  recordedAt: number
+}
+
 export type MapSettings = {
   zoom: number
   pan: { x: number; y: number }

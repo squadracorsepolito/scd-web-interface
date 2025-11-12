@@ -2,7 +2,11 @@
 import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
-import type { VehicleData as VehicleDataType, DataPoint as DataPointType } from "@/types/vehicle-types"
+import type {
+  VehicleData as VehicleDataType,
+  DataPoint as DataPointType,
+  LapLogEntry,
+} from "@/types/vehicle-types"
 import VehicleDashboard from "../components/dashboard/vehicle-dashboard"
 import TestsDashboard from "../components/dashboard/tests-dashboard"
 import { MapContainer } from "../components/map/map-container"
@@ -43,6 +47,7 @@ export default function VehicleVisualization() {
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false)
   const [speedData, setSpeedData] = useState<DataPointType[]>([])
   const [throttleData, setThrottleData] = useState<DataPointType[]>([])
+  const [lapLogs, setLapLogs] = useState<LapLogEntry[]>([])
   const [currentView, setCurrentView] = useState<'dashboard' | 'tests'>('dashboard')
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -54,6 +59,7 @@ export default function VehicleVisualization() {
   const refreshHandlerRef = useRef<(() => Promise<void>) | null>(null)
   
   const reconnectAttemptsRef = useRef(0)
+  const lapCounterRef = useRef(0)
   // Handler setters that update refs
   const setUploadHandler = (handler: ((data: UploadData, onProgress?: (progress: number) => void) => Promise<void>) | null) => {
     uploadHandlerRef.current = handler
@@ -97,7 +103,35 @@ export default function VehicleVisualization() {
       },
       onData: (receivedData) => setData(receivedData),
       onSpeedData: (data) => setSpeedData(data),
-      onThrottleData: (data) => setThrottleData(data)
+      onThrottleData: (data) => setThrottleData(data),
+      onLapLog: (message) => {
+        const incomingLap =
+          typeof message.lapNumber === "number" && Number.isFinite(message.lapNumber)
+            ? Math.max(1, Math.floor(message.lapNumber))
+            : null
+
+        let resolvedLapNumber: number
+        if (incomingLap !== null) {
+          lapCounterRef.current = Math.max(lapCounterRef.current, incomingLap)
+          resolvedLapNumber = incomingLap
+        } else {
+          lapCounterRef.current += 1
+          resolvedLapNumber = lapCounterRef.current
+        }
+
+        setLapLogs((previous) => {
+          const entry: LapLogEntry = {
+            lapNumber: resolvedLapNumber,
+            data: message.payload,
+            raw: message.raw,
+            recordedAt: Date.now(),
+          }
+
+          const deduped = previous.filter((item) => item.lapNumber !== resolvedLapNumber)
+          const nextEntries = [entry, ...deduped]
+          return nextEntries.slice(0, 100)
+        })
+      },
     })
   )
 
@@ -122,6 +156,7 @@ export default function VehicleVisualization() {
           reconnectAttempt={reconnectAttemptsRef.current}
           speedData={speedData}
           throttleData={throttleData}
+          lapLogs={lapLogs}
           webSocketService={wsRef.current}
           onViewChange={setCurrentView}
         />
