@@ -43,9 +43,9 @@ export default function LapLogList({ entries }: LapLogListProps) {
                     <span className="font-mono text-xs text-zinc-400">{lapTime}</span>
                   )}
                 </div>
-                <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-400 overflow-x-auto">
+                {/* <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-400 overflow-x-auto">
                   {formattedJson}
-                </pre>
+                </pre> */}
               </div>
             )
           })
