@@ -68,6 +68,7 @@ export class WebSocketService {
     
     if (mode === 'live') {
       this.isTestReplay = false;
+      this.clearStaticMapData();
       this.resetLiveSessionState();
       this.connectToLive();
     } else if (mode === 'replay' && replayDataPath) {
@@ -663,5 +664,19 @@ export class WebSocketService {
 
   private clearLiveSnapshot() {
     this.liveSnapshot = null
+  }
+
+  private clearStaticMapData() {
+    this.staticMapData = null
+
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      window.localStorage.removeItem(WebSocketService.STATIC_MAP_STORAGE_KEY)
+    } catch (error) {
+      console.warn('Failed to clear cached map data from storage:', error)
+    }
   }
 }
