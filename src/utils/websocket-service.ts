@@ -68,6 +68,7 @@ export class WebSocketService {
     
     if (mode === 'live') {
       this.isTestReplay = false;
+      this.clearStaticMapData();
       this.resetLiveSessionState();
       this.connectToLive();
     } else if (mode === 'replay' && replayDataPath) {
@@ -486,6 +487,12 @@ export class WebSocketService {
     if (!this.liveSnapshot) {
       const initialPacket = this.applyStaticDataToInitialPacket(update)
       if (!initialPacket || !this.isValidInitialLivePacket(initialPacket)) {
+        if (!this.staticMapData) {
+          this.liveSnapshot = this.buildFallbackLivePacket(update)
+          this.updateStaticMapData(this.liveSnapshot)
+          return this.liveSnapshot
+        }
+
         console.warn("Initial live packet missing required map data; waiting for full payload before rendering.")
         return null
       }
@@ -523,12 +530,18 @@ export class WebSocketService {
   private applyStaticDataToInitialPacket(update: VehicleData | Partial<VehicleData>): VehicleData | null {
     const basePacket = { ...(update as VehicleData) }
 
-    const mapCones = this.resolveInitialRequiredArray('map_cones', update)
-    const activeCones = this.resolveInitialRequiredArray('active_cones', update)
-    const waypoints = this.resolveInitialRequiredArray('waypoint_array', update)
+    let mapCones = this.resolveInitialRequiredArray('map_cones', update)
+    let activeCones = this.resolveInitialRequiredArray('active_cones', update)
+    let waypoints = this.resolveInitialRequiredArray('waypoint_array', update)
 
     if (!mapCones || !activeCones || !waypoints) {
-      return null
+      if (this.staticMapData) {
+        return null
+      }
+
+      mapCones = mapCones ?? []
+      activeCones = activeCones ?? []
+      waypoints = waypoints ?? []
     }
 
     basePacket.map_cones = mapCones
@@ -663,5 +676,38 @@ export class WebSocketService {
 
   private clearLiveSnapshot() {
     this.liveSnapshot = null
+  }
+
+  private clearStaticMapData() {
+    this.staticMapData = null
+
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      window.localStorage.removeItem(WebSocketService.STATIC_MAP_STORAGE_KEY)
+    } catch (error) {
+      console.warn('Failed to clear cached map data from storage:', error)
+    }
+  }
+
+  private buildFallbackLivePacket(update: VehicleData | Partial<VehicleData>): VehicleData {
+    return {
+      yaw: update.yaw ?? 0,
+      x: update.x ?? 0,
+      y: update.y ?? 0,
+      speed: update.speed ?? 0,
+      delta: update.delta ?? 0,
+      throttle: update.throttle ?? 0,
+      state: update.state ?? 0,
+      lap: update.lap ?? 0,
+      timestamp: update.timestamp ?? Date.now(),
+      Ndata: update.Ndata ?? 0,
+      map_cones: Array.isArray(update.map_cones) ? update.map_cones : [],
+      active_cones: Array.isArray(update.active_cones) ? update.active_cones : [],
+      waypoint_array: Array.isArray(update.waypoint_array) ? update.waypoint_array : [],
+      green_points: Array.isArray(update.green_points) ? update.green_points : undefined,
+    }
   }
 }
