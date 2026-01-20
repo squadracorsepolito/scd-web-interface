@@ -104,6 +104,13 @@ export default function VehicleVisualization() {
       onData: (receivedData) => setData(receivedData),
       onSpeedData: (data) => setSpeedData(data),
       onThrottleData: (data) => setThrottleData(data),
+      onReset: () => {
+        setData(null)
+        setSpeedData([])
+        setThrottleData([])
+        setLapLogs([])
+        lapCounterRef.current = 0
+      },
       onLapLog: (message) => {
         const incomingLap =
           typeof message.lapNumber === "number" && Number.isFinite(message.lapNumber)
