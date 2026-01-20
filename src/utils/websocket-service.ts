@@ -110,6 +110,10 @@ export class WebSocketService {
 
     this.ws.onopen = () => {
       console.log("Connected to WebSocket")
+      const wasReconnecting = this.reconnectAttempts > 0
+      if (wasReconnecting) {
+        this.resetLiveSessionState()
+      }
       this.callbacks.onConnect()
       this.reconnectAttempts = 0
     }
