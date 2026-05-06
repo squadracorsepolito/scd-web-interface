@@ -1,6 +1,6 @@
 # SCD Web Interface
 
-Real-time visualization interface for Squadra Corse (rip driverless). Built with next.js. The app receives live telemetry over WebSockets, renders car widgets, and offers tooling to review recorded rosbags.
+Real-time visualization interface for Squadra Corse PoliTO (rip driverless). Built with next.js. The app receives live telemetry over WebSockets, renders car widgets, and offers tooling to review recorded rosbags.
 
 ---
 
@@ -24,15 +24,15 @@ Real-time visualization interface for Squadra Corse (rip driverless). Built with
 ### Installation
 
 ```bash
-git clone https://github.com/squadracorsedriverless/scd-web-interface.git
+git clone https://github.com/squadracorsepolito/scd-web-interface.git
 cd scd-web-interface
-npm install
+pnpm install
 ```
 
 ### Development
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 This boots Next.js at `http://localhost:3000`. The dashboard attempts to open a WebSocket using the last configured IP/port (edit via “Connection Settings” in the sidebar).
@@ -86,8 +86,8 @@ The Lap Logs panel (under the throttle chart) prettyprints the saved JSON per la
 
 ## REST Backend Integration
 
-- API base URL defaults to `http://localhost:8000`. Adjust `API_BASE_URL` in `src/lib/api.ts` to point at your backend.
-- Authentication uses a token stored in `localStorage` (`authToken`). Authentication failures automatically clear the token and prompt re-login.
+- API base URL defaults to `http://localhost:8000`. Configure it through `.env.local` using the variables documented in `.env.example`, or enter a server host/port in the login modal.
+- Authentication uses the backend token response in memory for the current tab session. The token is not persisted to `localStorage`, so refreshing the page requires logging in again.
 - Rosbag uploads accept ZIP/YAML/DB payloads with progress reporting.
 
 ---
@@ -110,4 +110,4 @@ public/data/          # Replay fixtures (data_compact.json)
 
 - **No telemetry shown**: confirm the WebSocket endpoint is reachable (use Connection Settings to adjust IP/port) and that packets include the required map arrays for the initial snapshot.
 - **Missing lap logs**: ensure `log.lap_time` is provided and is not empty.
-- **REST errors**: check `API_BASE_URL` and authentication token validity. A 401 response clears the stored token.
+- **REST errors**: check the configured API URL and authentication token validity. A 401 response clears the in-memory session and prompts re-login.

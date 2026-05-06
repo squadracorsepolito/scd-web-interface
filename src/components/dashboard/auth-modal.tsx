@@ -3,6 +3,12 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { X, LogIn, AlertCircle, CheckCircle, Settings, ChevronDown, ChevronUp } from "lucide-react"
+import {
+  buildApiBaseUrl,
+  getApiServerSettings,
+  parseApiServerSettings,
+  setAuthSession,
+} from "@/lib/auth-session"
 
 type AuthModalProps = {
   isOpen: boolean
@@ -10,13 +16,19 @@ type AuthModalProps = {
   onSuccess: () => void
 }
 
-export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
-  const [credentials, setCredentials] = useState({
+const getInitialCredentials = () => {
+  const settings = getApiServerSettings()
+
+  return {
     username: "",
     password: "",
-    serverUrl: "localhost",
-    serverPort: "8000"
-  })
+    serverUrl: settings.host,
+    serverPort: settings.port,
+  }
+}
+
+export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
+  const [credentials, setCredentials] = useState(getInitialCredentials)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -43,7 +55,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setSuccessMessage(null)
 
     try {
-      const apiUrl = `http://${credentials.serverUrl}:${credentials.serverPort}`
+      const serverSettings = parseApiServerSettings(credentials.serverUrl, credentials.serverPort)
+      const apiUrl = buildApiBaseUrl(serverSettings)
       const response = await fetch(`${apiUrl}/api-token-auth/`, {
         method: 'POST',
         headers: {
@@ -56,13 +69,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json() as { token?: string }
         if (data.token) {
-          // Store token, username, and server configuration in localStorage
-          localStorage.setItem('authToken', data.token)
-          localStorage.setItem('username', credentials.username)
-          localStorage.setItem('apiServerUrl', credentials.serverUrl)
-          localStorage.setItem('apiServerPort', credentials.serverPort)
+          setAuthSession({
+            token: data.token,
+            username: credentials.username,
+            serverSettings,
+          })
           setSuccessMessage('Authentication successful!')
           
           // Wait a moment to show success message, then proceed
@@ -78,15 +91,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         setError(errorData.detail || 'Invalid credentials')
       }
     } catch (error) {
-      setError('Network error. Please check if the server is running and the URL/port are correct.')
-      console.error('Login error:', error)
+      setError(error instanceof Error ? error.message : 'Network error. Please check if the server is running and the URL/port are correct.')
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleClose = () => {
-    setCredentials({ username: "", password: "", serverUrl: "localhost", serverPort: "8000" })
+    setCredentials(getInitialCredentials())
     setError(null)
     setSuccessMessage(null)
     onClose()

@@ -46,7 +46,7 @@ export function ConnectionControls({
       webSocketService.connect('live', undefined, config);
     } else {
       // Switching to replay mode
-      const dataPath = '/data/data_compact.json'
+      const dataPath = process.env.NEXT_PUBLIC_REPLAY_DATA_PATH || '/data/data_compact.json'
       webSocketService.connect('replay', dataPath);
       
       // If position saved, restore it

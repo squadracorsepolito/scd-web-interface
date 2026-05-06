@@ -15,6 +15,7 @@ import { ConnectionControls } from '@/components/ui/ConnectionControls'
 import { Button } from "@/components/ui/button"
 import { TestTube } from "lucide-react"
 import LapLogList from "@/components/dashboard/lap-log-list"
+import { isAuthenticated } from "@/lib/auth-session"
 
 type VehicleDashboardProps = {
   data: VehicleData | null
@@ -42,13 +43,9 @@ export default function VehicleDashboard({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
   const handleTestsClick = () => {
-    // Check if user is already authenticated
-    const token = localStorage.getItem('authToken')
-    if (token) {
-      // Already authenticated, go directly to tests
+    if (isAuthenticated()) {
       onViewChange('tests')
     } else {
-      // Not authenticated, show auth modal
       setIsAuthModalOpen(true)
     }
   }

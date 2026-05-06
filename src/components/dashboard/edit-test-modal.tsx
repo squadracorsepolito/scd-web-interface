@@ -353,8 +353,8 @@ export default function EditTestModal({ isOpen, onClose, onSuccess, rosbag }: Ed
         setSubmitError("No data returned from server")
       }
     } catch (error) {
+      void error
       setSubmitError("An unexpected error occurred. Please try again.")
-      console.error("Update error:", error)
     } finally {
       setIsSubmitting(false)
       setUploadProgress(0)

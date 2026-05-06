@@ -27,6 +27,9 @@ type ConnectionConfig = {
   port: number
 }
 
+const DEFAULT_WS_HOST = process.env.NEXT_PUBLIC_WS_DEFAULT_HOST || '127.0.0.1'
+const DEFAULT_WS_PORT = Number(process.env.NEXT_PUBLIC_WS_DEFAULT_PORT) || 9090
+
 export class WebSocketService {
   private ws: WebSocket | null = null
   private reconnectAttempts = 0
@@ -44,7 +47,7 @@ export class WebSocketService {
   private replayPaused = false
   private isTestReplay = false
   private intentionalDisconnect = false
-  private connectionConfig: ConnectionConfig = { ip: '127.0.0.1', port: 9090 }
+  private connectionConfig: ConnectionConfig = { ip: DEFAULT_WS_HOST, port: DEFAULT_WS_PORT }
   private liveSnapshot: VehicleData | null = null
   private static readonly STATIC_MAP_STORAGE_KEY = 'scd-web-static-map-data'
   private staticMapData: Pick<VehicleData, 'map_cones' | 'active_cones' | 'waypoint_array' | 'green_points'> | null = null
@@ -109,7 +112,6 @@ export class WebSocketService {
     this.ws = new WebSocket(wsUrl)
 
     this.ws.onopen = () => {
-      console.log("Connected to WebSocket")
       const wasReconnecting = this.reconnectAttempts > 0
       if (wasReconnecting) {
         this.resetSessionState()
@@ -120,7 +122,7 @@ export class WebSocketService {
 
     this.ws.onmessage = (event) => {
       try {
-  const receivedData = JSON.parse(event.data) as IncomingPacket
+        const receivedData = JSON.parse(event.data) as IncomingPacket
         this.processData(receivedData)
       } catch (error) {
         console.error("Error parsing WebSocket data:", error)
@@ -128,7 +130,6 @@ export class WebSocketService {
     }
 
     this.ws.onclose = () => {
-      console.log("Disconnected from WebSocket")
       this.callbacks.onDisconnect()
 
       if (this.intentionalDisconnect || this.connectionMode === 'replay') {
@@ -140,7 +141,6 @@ export class WebSocketService {
       }
 
       const reconnectDelay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000)
-      console.log(`Attempting to reconnect in ${reconnectDelay}ms (attempt ${this.reconnectAttempts + 1})`)
 
       this.callbacks.onReconnecting(this.reconnectAttempts + 1)
       this.reconnectAttempts += 1
@@ -272,19 +272,11 @@ export class WebSocketService {
     this.replayPaused = false
     
     if (this.isTestReplay && this.replayData.length > 0) {
-      // For test replays, use actual timestamps from the data
-      console.log(`Starting test replay using actual timestamps from data`)
       this.scheduleNextReplayFrame()
     } else {
       // Use different timing for file replays vs test replays (fallback)
       const baseInterval = this.isTestReplay ? 16.67 : 100
       const interval = baseInterval / this.replaySpeed
-      
-      if (this.isTestReplay) {
-        console.log(`Starting test replay at 60 packets/second (${interval.toFixed(1)}ms interval) - fallback mode`)
-      } else {
-        console.log(`Starting file replay at ${(1000/interval).toFixed(1)} packets/second (${interval.toFixed(1)}ms interval)`)
-      }
       
       this.replayInterval = setInterval(() => {
         if (this.replayPaused) return
@@ -295,7 +287,6 @@ export class WebSocketService {
           this.replayIndex++
         } else {
           this.pauseReplay()
-          console.log("Replay finished")
         }
       }, interval)
     }
@@ -304,7 +295,6 @@ export class WebSocketService {
   private scheduleNextReplayFrame() {
     if (this.replayPaused || this.replayIndex >= this.replayData.length) {
       if (this.replayIndex >= this.replayData.length) {
-        console.log("Replay finished")
         this.pauseReplay()
       }
       return
@@ -338,7 +328,6 @@ export class WebSocketService {
         this.scheduleNextReplayFrame()
       }, adjustedDelay)
     } else {
-      console.log("Replay finished")
       this.pauseReplay()
     }
   }

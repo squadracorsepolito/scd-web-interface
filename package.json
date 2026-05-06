@@ -2,23 +2,25 @@
   "name": "scd-web-interface",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.12.1",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "pages:build": "npx @cloudflare/next-on-pages",
-    "preview": "npm run pages:build && wrangler pages dev",
-    "deploy": "npm run pages:build && wrangler pages deploy"
+    "preview": "pnpm run pages:build && wrangler pages dev",
+    "deploy": "pnpm run pages:build && wrangler pages deploy"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.479.0",
-    "next": "15.2.6",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
+    "next": "15.5.15",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "react-leaflet": "^5.0.0-rc.2",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7"
@@ -28,11 +30,16 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "eslint": "^9",
-    "eslint-config-next": "15.2.1",
+    "eslint-config-next": "15.5.15",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "8.5.10"
+    }
   }
 }

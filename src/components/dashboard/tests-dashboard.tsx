@@ -12,6 +12,7 @@ import { VehicleData } from "@/types/vehicle-types"
 import { uncompressJsonData, type CompactVehicleData } from "@/utils/json-uncompressor"
 import TestFilterModal, { FilterCriteria } from "./test-filter-modal"
 import { Pagination, PaginationInfo } from "@/components/ui/pagination"
+import { clearAuthSession, getApiBaseUrl, getAuthUsername } from "@/lib/auth-session"
 
 type EditData = {
   rosbag_file?: File
@@ -67,7 +68,7 @@ export default function TestsDashboard({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processingTests, setProcessingTests] = useState<Set<number>>(new Set())
-  const [username, setUsername] = useState<string>('')
+  const [username, setUsername] = useState<string>(() => getAuthUsername())
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [activeFilters, setActiveFilters] = useState<FilterCriteria | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -212,8 +213,8 @@ export default function TestsDashboard({
         setError(response.error || 'Failed to load tests')
       }
     } catch (err) {
+      void err
       setError('Failed to connect to server')
-      console.error('Error loading rosbags:', err)
     } finally {
       setLoading(false)
     }
@@ -257,17 +258,11 @@ export default function TestsDashboard({
   // Load rosbags on component mount
   useEffect(() => {
     loadRosbags()
-    // Get username from localStorage
-    const storedUsername = localStorage.getItem('username')
-    if (storedUsername) {
-      setUsername(storedUsername)
-    }
+    setUsername(getAuthUsername())
   }, [loadRosbags])
 
   const handleUpload = useCallback(async (data: UploadData, onProgress?: (progress: number) => void) => {
     try {
-      console.log("Upload data received:", data)
-      
       const rosbagData: RosbagUpload = {
         track_name: data.trackName,
         mission_name: data.missionName,
@@ -282,25 +277,15 @@ export default function TestsDashboard({
       if (data.rosbag_file) {
         const rosbagContent = await readFileAsArrayBuffer(data.rosbag_file)
         rosbagData.zip_file = createBlobFromArrayBuffer(rosbagContent, data.rosbag_file.type)
-        console.log("Added rosbag file content:", data.rosbag_file.name, "Size:", rosbagContent.byteLength, "bytes", "Type:", data.rosbag_file.type)
-        console.log("First 100 bytes:", new Uint8Array(rosbagContent.slice(0, 100)))
       }
       if (data.yaml_file) {
         const yamlContent = await readFileAsArrayBuffer(data.yaml_file)
         rosbagData.yaml_file = createBlobFromArrayBuffer(yamlContent, data.yaml_file.type)
-        console.log("Added yaml file content:", data.yaml_file.name, "Size:", yamlContent.byteLength, "bytes", "Type:", data.yaml_file.type)
-        // For text files, also log the beginning as text
-        const textContent = new TextDecoder().decode(yamlContent.slice(0, 200))
-        console.log("YAML content preview:", textContent.substring(0, 100) + "...")
       }
       if (data.db_file) {
         const dbContent = await readFileAsArrayBuffer(data.db_file)
         rosbagData.db_file = createBlobFromArrayBuffer(dbContent, data.db_file.type)
-        console.log("Added db file content:", data.db_file.name, "Size:", dbContent.byteLength, "bytes", "Type:", data.db_file.type)
-        console.log("First 100 bytes:", new Uint8Array(dbContent.slice(0, 100)))
       }
-
-      console.log("Final rosbag data for API:", rosbagData)
       
       const response = await rosbagsApi.upload(rosbagData, onProgress)
       if (response.data) {
@@ -313,7 +298,6 @@ export default function TestsDashboard({
         throw new Error(response.error || 'Upload failed')
       }
     } catch (error) {
-      console.error('Upload error:', error)
       throw error
     }
   }, [setIsUploadModalOpen, loadRosbags])
@@ -321,9 +305,6 @@ export default function TestsDashboard({
   // Update handler
   const handleUpdate = useCallback(async (id: number, data: Partial<EditData>, onProgress?: (progress: number) => void) => {
     try {
-      console.log("Update data received:", data)
-      console.log("Update ID:", id)
-      
       if (!data) {
         throw new Error('Update data is undefined')
       }
@@ -337,56 +318,41 @@ export default function TestsDashboard({
       // Only add fields that are defined and not null
       if (data.track_name !== undefined) {
         rosbagData.track_name = data.track_name
-        console.log("Setting track_name:", data.track_name)
       }
       if (data.mission_name !== undefined) {
         rosbagData.mission_name = data.mission_name
-        console.log("Setting mission_name:", data.mission_name)
       }
       if (data.number_of_evaluated_cones_yellow !== undefined) {
         rosbagData.number_of_evaluated_cones_yellow = data.number_of_evaluated_cones_yellow
-        console.log("Setting number_of_evaluated_cones_yellow:", data.number_of_evaluated_cones_yellow)
       }
       if (data.number_of_evaluated_cones_blue !== undefined) {
         rosbagData.number_of_evaluated_cones_blue = data.number_of_evaluated_cones_blue
-        console.log("Setting number_of_evaluated_cones_blue:", data.number_of_evaluated_cones_blue)
       }
       if (data.avg_lap_time !== undefined) {
         rosbagData.avg_lap_time = data.avg_lap_time
-        console.log("Setting avg_lap_time:", data.avg_lap_time)
       }
       if (data.number_of_laps_completed !== undefined) {
         rosbagData.number_of_laps_completed = data.number_of_laps_completed
-        console.log("Setting number_of_laps_completed:", data.number_of_laps_completed)
       }
       if (data.is_successful !== undefined) {
         rosbagData.is_successful = data.is_successful
-        console.log("Setting is_successful:", data.is_successful)
       }
 
       // Read file contents as binary data and add them if they exist
       if (data.rosbag_file) {
         const rosbagContent = await readFileAsArrayBuffer(data.rosbag_file)
         rosbagData.zip_file = createBlobFromArrayBuffer(rosbagContent, data.rosbag_file.type)
-        console.log("Added rosbag file content:", data.rosbag_file.name, "Size:", rosbagContent.byteLength, "bytes", "Type:", data.rosbag_file.type)
       }
       if (data.yaml_file) {
         const yamlContent = await readFileAsArrayBuffer(data.yaml_file)
         rosbagData.yaml_file = createBlobFromArrayBuffer(yamlContent, data.yaml_file.type)
-        console.log("Added yaml file content:", data.yaml_file.name, "Size:", yamlContent.byteLength, "bytes", "Type:", data.yaml_file.type)
       }
       if (data.db_file) {
         const dbContent = await readFileAsArrayBuffer(data.db_file)
         rosbagData.db_file = createBlobFromArrayBuffer(dbContent, data.db_file.type)
-        console.log("Added db file content:", data.db_file.name, "Size:", dbContent.byteLength, "bytes", "Type:", data.db_file.type)
       }
-
-      console.log("Final rosbag data for update API:", rosbagData)
-      console.log("Number of fields to update:", Object.keys(rosbagData).length)
       
       if (Object.keys(rosbagData).length === 0) {
-        console.log("No fields to update, skipping API call")
-        // Auto-close the modal even if no changes
         setIsEditModalOpen(false)
         setEditingRosbag(null)
         return
@@ -394,25 +360,20 @@ export default function TestsDashboard({
       
       const response = await rosbagsApi.partialUpdate(id, rosbagData, onProgress)
       if (response.data) {
-        console.log("Update successful:", response.data)
-        // Reload data to show the updated test
         await loadRosbags()
-        // Auto-close the modal after successful update
         setIsEditModalOpen(false)
         setEditingRosbag(null)
       } else {
         throw new Error(response.error || 'Update failed')
       }
     } catch (error) {
-      console.error('Update error:', error)
       throw error
     }
   }, [setIsEditModalOpen, setEditingRosbag, loadRosbags])
 
   // Handle successful edit
   const handleEditSuccess = useCallback(async (updatedRosbag: Rosbag) => {
-    console.log('Edit successful for rosbag:', updatedRosbag.id)
-    
+    void updatedRosbag
     // Reload data to show the updated test
     await loadRosbags()
     // Close modal
@@ -452,21 +413,17 @@ export default function TestsDashboard({
     setProcessingTests(prev => new Set(prev).add(id))
     
     try {
-      console.log('Processing rosbag with ID:', id)
-      
       // Call the API to process the rosbag and generate JSON data
       const response = await rosbagsApi.processRosbag(id)
       
       if (response.data) {
-        console.log('Rosbag processed successfully:', response.data)
         // Reload the rosbags to get updated status with the new json_file
         await loadRosbags()
       } else {
-        console.error('Processing error:', response.error)
         alert(response.error || 'Failed to process rosbag')
       }
     } catch (error) {
-      console.error('Processing error:', error)
+      void error
       alert('Failed to process rosbag')
     } finally {
       setProcessingTests(prev => {
@@ -496,7 +453,7 @@ export default function TestsDashboard({
         alert(response.error || 'Failed to delete test')
       }
     } catch (error) {
-      console.error('Delete error:', error)
+      void error
       alert('Failed to delete test')
     }
   }
@@ -520,7 +477,7 @@ export default function TestsDashboard({
         alert(response.error || 'Failed to download data')
       }
     } catch (error) {
-      console.error('Download error:', error)
+      void error
       alert('Failed to download data')
     }
   }
@@ -542,14 +499,13 @@ export default function TestsDashboard({
         alert(response.error || `Failed to download file`)
       }
     } catch (error) {
-      console.error('Download file error:', error)
+      void error
       alert(`Failed to download file`)
     }
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('username')
+    clearAuthSession()
     onViewChange('dashboard')
   }
 
@@ -561,18 +517,14 @@ export default function TestsDashboard({
 
     try {
       // Use the json endpoint to get the processed data
-      console.log('Fetching data from json endpoint for rosbag:', id)
       const response = await rosbagsApi.getJsonData(id)
 
       if (response.data) {
-        console.log('Test data structure:', response.data)
-        
         let convertedData: VehicleData[] = []
         
         // Always treat data as compressed and use uncompression method
         // Check if we have vehicle_states in the response
         if (response.data.vehicle_states && Array.isArray(response.data.vehicle_states)) {
-          console.log('Processing vehicle_states as compressed data...')
           // Use the uncompression method treating data as compressed
           const compactDataArray = response.data.vehicle_states as CompactVehicleData[]
           const uncompressedData = await uncompressJsonData(compactDataArray)
@@ -585,7 +537,6 @@ export default function TestsDashboard({
           }))
         } else {
           // If the data structure is different, try to adapt it as compressed data
-          console.log('Processing fallback data as compressed...')
           const dataArray = Array.isArray(response.data) ? response.data : [response.data]
           
           const compactDataArray = dataArray as CompactVehicleData[]
@@ -605,9 +556,6 @@ export default function TestsDashboard({
           return
         }
 
-        console.log('Uncompressed and converted data sample:', convertedData.slice(0, 3))
-        console.log(`Total data points after uncompression: ${convertedData.length}`)
-        
         // Start replay with the converted data
         webSocketService.startTestReplay(convertedData)
         
@@ -617,7 +565,7 @@ export default function TestsDashboard({
         alert(response.error || 'Failed to load test data')
       }
     } catch (error) {
-      console.error('Play test error:', error)
+      void error
       alert('Failed to play test data')
     }
   }
@@ -662,11 +610,7 @@ export default function TestsDashboard({
   }
 
   const getServerInfo = () => {
-    const serverUrl = localStorage.getItem('apiServerUrl') || 'localhost'
-    const serverPort = localStorage.getItem('apiServerPort') || '8000'
-    const fullUrl = `http://${serverUrl}:${serverPort}`
-    
-    return { serverUrl, serverPort, fullUrl }
+    return { fullUrl: getApiBaseUrl() }
   }
 
   const stats = getStatistics()

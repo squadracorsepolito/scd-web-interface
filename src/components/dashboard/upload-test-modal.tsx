@@ -133,35 +133,43 @@ export default function UploadTestModal({ isOpen, onClose, onSuccess, onRefreshN
 
   // Process uploaded files based on type and mode
   const handleFiles = (files: FileList) => {
+    const acceptedFields = new Set<keyof UploadFormData>()
+    let unsupportedFile: string | null = null
+
     Array.from(files).forEach(file => {
       const extension = file.name.toLowerCase().split('.').pop()
       
       switch (extension) {
         case 'zip':
           setFormData((prev: UploadFormData) => ({ ...prev, zip_file: file }))
+          acceptedFields.add('zip_file')
           break
         case 'yaml':
         case 'yml':
           setFormData((prev: UploadFormData) => ({ ...prev, yaml_file: file }))
+          acceptedFields.add('yaml_file')
           break
         case 'db':
         case 'db3':
           setFormData((prev: UploadFormData) => ({ ...prev, db_file: file }))
+          acceptedFields.add('db_file')
           break
         default:
-          // Show a warning for unsupported file types
-          console.warn(`Unsupported file type: ${extension} for file: ${file.name}`)
+          unsupportedFile = file.name
           break
       }
     })
     
-    // Clear any existing file validation errors
     setFieldErrors((prev) => {
       const newErrors = { ...prev }
-      delete newErrors.zip_file
-      delete newErrors.yaml_file
-      delete newErrors.db_file
-      delete newErrors.files
+      acceptedFields.forEach((field) => delete newErrors[field])
+
+      if (unsupportedFile) {
+        newErrors.files = [`Unsupported file type: ${unsupportedFile}`]
+      } else {
+        delete newErrors.files
+      }
+
       return newErrors
     })
   }

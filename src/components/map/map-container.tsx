@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import GlobalMap from "./global-map"
 import type { VehicleData } from "@/types/vehicle-types"
@@ -16,7 +16,7 @@ interface MapContainerProps {
 export function MapContainer({ data, connectionMode = 'live' }: MapContainerProps) {
   const [bandwidth, setBandwidth] = useState<number | null>(null);
   const [ping, setPing] = useState<number>(0);
-  const [lastTimestamp, setLastTimestamp] = useState<number>(0);
+  const lastTimestampRef = useRef(0);
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -31,8 +31,8 @@ export function MapContainer({ data, connectionMode = 'live' }: MapContainerProp
 
   useEffect(() => {
     if (data?.timestamp !== undefined) {
-      const latency = data.timestamp - lastTimestamp;
-      setLastTimestamp(data.timestamp);
+      const latency = data.timestamp - lastTimestampRef.current;
+      lastTimestampRef.current = data.timestamp;
       setPing(latency);
       if (data?.Ndata !== undefined) {
         const dataDiff = data.Ndata;

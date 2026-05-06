@@ -38,7 +38,7 @@ export default function GlobalMap({
 
   useEffect(() => {
     drawMap()
-  }, [data, zoom, pan, showCones, showWaypoints, showWaypointIndicators, showActiveCones, showGreenPoints])
+  })
 
   const drawMap = () => {
     const canvas = canvasRef.current
