@@ -9,6 +9,7 @@ type WebSocketCallbacks = {
   onSpeedData: (data: DataPoint[]) => void
   onThrottleData: (data: DataPoint[]) => void
   onLapLog?: (payload: LapLogMessage) => void
+  onReset?: () => void
 }
 
 type IncomingPacket = Partial<VehicleData> & { log?: unknown }
@@ -68,8 +69,7 @@ export class WebSocketService {
     
     if (mode === 'live') {
       this.isTestReplay = false;
-      this.clearStaticMapData();
-      this.resetLiveSessionState();
+      this.resetSessionState();
       this.connectToLive();
     } else if (mode === 'replay' && replayDataPath) {
       try {
@@ -110,6 +110,10 @@ export class WebSocketService {
 
     this.ws.onopen = () => {
       console.log("Connected to WebSocket")
+      const wasReconnecting = this.reconnectAttempts > 0
+      if (wasReconnecting) {
+        this.resetSessionState()
+      }
       this.callbacks.onConnect()
       this.reconnectAttempts = 0
     }
@@ -672,6 +676,12 @@ export class WebSocketService {
     this.speedData = []
     this.throttleData = []
     this.clearLiveSnapshot()
+  }
+
+  private resetSessionState() {
+    this.resetLiveSessionState()
+    this.clearStaticMapData()
+    this.callbacks.onReset?.()
   }
 
   private clearLiveSnapshot() {
