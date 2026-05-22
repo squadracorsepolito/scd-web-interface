@@ -1,6 +1,10 @@
 # SCD Web Interface
 
-Real-time visualization interface for Squadra Corse PoliTO (rip driverless). Built with next.js. The app receives live telemetry over WebSockets, renders car widgets, and offers tooling to review recorded rosbags.
+Real-time visualization interface for Squadra Corse PoliTO (rip driverless). Built with Next.js. The app receives live telemetry over WebSockets, renders car widgets, and offers tooling to review recorded rosbags.
+
+This repository is meant to be used together with the **[automated-tests-backend](https://github.com/squadracorsepolito/automated-tests-backend)** Django API. The backend stores rosbag test metadata and files; this frontend authenticates against it, uploads and edits tests, processes rosbags into replay JSON, and plays them back in the dashboard. Live telemetry does not go through the REST API, it uses a separate WebSocket source.
+
+For simulator side test ingestion, the backend also integrates with **[automated-autonomous-simulator-tests-backend](https://github.com/squadracorsepolito/automated-autonomous-simulator-tests-backend)**.
 
 ---
 
@@ -18,8 +22,8 @@ Real-time visualization interface for Squadra Corse PoliTO (rip driverless). Bui
 
 ### Prerequisites
 
-- Optional: a running telemetry WebSocket server (defaults to `ws://127.0.0.1:9090`)
-- Optional: REST API for rosbag management (defaults to `http://localhost:8000`)
+- **Rosbag / test management:** [automated-tests-backend](https://github.com/squadracorsepolito/automated-tests-backend) on `http://localhost:8000` (see that repo’s README for setup, migrations, and `.env`)
+- **Live telemetry (optional):** a WebSocket server (defaults to `ws://127.0.0.1:9090`)
 
 ### Installation
 
@@ -27,6 +31,7 @@ Real-time visualization interface for Squadra Corse PoliTO (rip driverless). Bui
 git clone https://github.com/squadracorsepolito/scd-web-interface.git
 cd scd-web-interface
 pnpm install
+cp .env.example .env.local   # optional; defaults match localhost:3000 / :8000
 ```
 
 ### Development
@@ -36,6 +41,37 @@ pnpm run dev
 ```
 
 This boots Next.js at `http://localhost:3000`. The dashboard attempts to open a WebSocket using the last configured IP/port (edit via “Connection Settings” in the sidebar).
+
+### Full stack (frontend + test backend)
+
+Typical local workflow for rosbag upload, processing, and replay:
+
+1. **Backend** — in [automated-tests-backend](https://github.com/squadracorsepolito/automated-tests-backend):
+
+   ```bash
+   git clone https://github.com/squadracorsepolito/automated-tests-backend.git
+   cd automated-tests-backend
+   python -m venv venv
+   # Windows: venv\Scripts\activate
+   # macOS/Linux: source venv/bin/activate
+   pip install -r requirements.txt
+   cp .env.example .env
+   python manage.py migrate
+   python create_admin.py
+   python manage.py runserver
+   ```
+
+   Ensure `CORS_ALLOWED_ORIGINS` in the backend `.env` includes `http://localhost:3000`.
+
+2. **Frontend** — in this repo: `pnpm install` then `pnpm run dev`.
+
+3. **In the UI** — open the Tests area, log in with the backend admin credentials (`POST /api-token-auth/`), then upload YAML/DB or ZIP rosbags, process them to JSON, and replay from the test list.
+
+| Service            | Default URL              | Role                                      |
+|--------------------|--------------------------|-------------------------------------------|
+| SCD Web Interface  | `http://localhost:3000`  | Dashboard, replay, test UI                |
+| automated-tests-backend | `http://localhost:8000` | Auth, rosbag CRUD, JSON/ROS generation |
+| Telemetry (optional) | `ws://127.0.0.1:9090`  | Live vehicle data                         |
 
 ---
 
@@ -89,6 +125,7 @@ The Lap Logs panel (under the throttle chart) prettyprints the saved JSON per la
 - API base URL defaults to `http://localhost:8000`. Configure it through `.env.local` using the variables documented in `.env.example`, or enter a server host/port in the login modal.
 - Authentication uses the backend token response in memory for the current tab session. The token is not persisted to `localStorage`, so refreshing the page requires logging in again.
 - Rosbag uploads accept ZIP/YAML/DB payloads with progress reporting.
+- Endpoints used by the UI include `POST /api-token-auth/`, `/api/rosbags/`, `/api/rosbags/{id}/`, `/api/rosbags/{id}/json/`, and `/api/rosbags/{id}/ros/`.
 
 ---
 
