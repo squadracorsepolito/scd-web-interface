@@ -8,10 +8,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "preview": "pnpm run pages:build && wrangler pages dev",
-    "deploy": "pnpm run pages:build && wrangler pages deploy"
+    "lint": "next lint"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",
@@ -26,7 +23,6 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.13",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -39,7 +35,24 @@
   },
   "pnpm": {
     "overrides": {
-      "postcss": "8.5.23"
+      "postcss": "8.5.23",
+      "sharp": "0.35.0",
+      "tar": "7.5.21",
+      "glob": "10.5.0",
+      "undici": "7.29.0",
+      "ws": "8.21.0",
+      "js-yaml": "4.3.1",
+      "brace-expansion@1": "1.1.18",
+      "brace-expansion@2": "2.1.4",
+      "minimatch@3": "3.1.5",
+      "minimatch@9": "9.0.7",
+      "picomatch": "4.0.4",
+      "defu": "6.1.5",
+      "flatted": "3.4.2",
+      "cookie": "0.7.2",
+      "@tootallnate/once": "3.0.1",
+      "esbuild": "0.25.12",
+      "ajv": "6.14.0"
     }
   }
 }
