@@ -5,6 +5,40 @@ import type React from "react"
 import { useEffect, useRef } from "react"
 import type { VehicleData } from "@/types/vehicle-types"
 
+export const MAP_METERS_TO_PX = 20
+export type MapFrame = "global" | "local"
+
+export function panToFollow(x: number, y: number, zoom: number) {
+  return {
+    x: -x * MAP_METERS_TO_PX * zoom,
+    y: y * MAP_METERS_TO_PX * zoom,
+  }
+}
+
+function bodyFromGlobal(x: number, y: number, poseX: number, poseY: number, yaw: number) {
+  const dx = x - poseX
+  const dy = y - poseY
+  const cosYaw = Math.cos(yaw)
+  const sinYaw = Math.sin(yaw)
+  return {
+    x: dx * cosYaw + dy * sinYaw,
+    y: -dx * sinYaw + dy * cosYaw,
+  }
+}
+
+function globalFromBody(x: number, y: number, poseX: number, poseY: number, yaw: number) {
+  const cosYaw = Math.cos(yaw)
+  const sinYaw = Math.sin(yaw)
+  return {
+    x: x * cosYaw - y * sinYaw + poseX,
+    y: x * sinYaw + y * cosYaw + poseY,
+  }
+}
+
+function toCanvas(x: number, y: number) {
+  return { x: x * MAP_METERS_TO_PX, y: -y * MAP_METERS_TO_PX }
+}
+
 type GlobalMapProps = {
   data: VehicleData
   zoom: number
@@ -18,6 +52,7 @@ type GlobalMapProps = {
   showWaypointIndicators?: boolean
   showActiveCones?: boolean
   showGreenPoints?: boolean
+  frame?: MapFrame
 }
 
 export default function GlobalMap({
@@ -33,8 +68,23 @@ export default function GlobalMap({
   showWaypointIndicators = true,
   showActiveCones = true,
   showGreenPoints = true,
+  frame = "global",
 }: GlobalMapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const trailRef = useRef<Array<{ x: number; y: number }>>([])
+  const lastPoseRef = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    if (frame !== "global") return
+    const x = Number(data.x)
+    const y = Number(data.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return
+    const last = lastPoseRef.current
+    if (last && Math.hypot(x - last.x, y - last.y) < 0.05) return
+    trailRef.current.push({ x, y })
+    if (trailRef.current.length > 4000) trailRef.current.shift()
+    lastPoseRef.current = { x, y }
+  }, [data.x, data.y, frame])
 
   useEffect(() => {
     drawMap()
@@ -110,45 +160,60 @@ export default function GlobalMap({
     ctx.lineTo(0, endY * scale)
     ctx.stroke()
 
-    // Calculate vehicle position
-    const vehicleX = data.x * scale
-    const vehicleY = -data.y * scale
+    const poseX = Number(data.x) || 0
+    const poseY = Number(data.y) || 0
+    const yaw = Number(data.yaw) || 0
+    const globalFrame = frame === "global"
+
+    const projectWorld = (x: number, y: number) => {
+      if (globalFrame) return toCanvas(x, y)
+      const body = bodyFromGlobal(x, y, poseX, poseY, yaw)
+      return toCanvas(body.x, body.y)
+    }
+
+    const projectBody = (x: number, y: number) => {
+      if (!globalFrame) return toCanvas(x, y)
+      const world = globalFromBody(x, y, poseX, poseY, yaw)
+      return toCanvas(world.x, world.y)
+    }
+
+    const vehicle = globalFrame ? toCanvas(poseX, poseY) : { x: 0, y: 0 }
+    const vehicleYaw = globalFrame ? yaw : 0
+
+    if (globalFrame && trailRef.current.length > 1) {
+      ctx.beginPath()
+      trailRef.current.forEach((point, index) => {
+        const projected = projectWorld(point.x, point.y)
+        if (index === 0) ctx.moveTo(projected.x, projected.y)
+        else ctx.lineTo(projected.x, projected.y)
+      })
+      ctx.strokeStyle = "rgba(255,255,255,0.35)"
+      ctx.lineWidth = 2 / zoom
+      ctx.setLineDash([])
+      ctx.stroke()
+    }
 
     // Draw map cones
     if (showCones && data.map_cones){
       data.map_cones.forEach((cone) => {
-        drawCone(ctx, cone.x * scale, -cone.y * scale, cone.color, zoom)
+        const projected = projectWorld(cone.x, cone.y)
+        drawCone(ctx, projected.x, projected.y, cone.color, zoom)
       })
     }
 
     // Draw green points
     if (showGreenPoints && data.green_points && data.green_points.length > 0) {
       data.green_points.forEach((cone) => {
-        drawCone(ctx, cone.x * scale, -cone.y * scale, 5, zoom, true)
+        const projected = projectWorld(cone.x, cone.y)
+        drawCone(ctx, projected.x, projected.y, 5, zoom, true)
       })
     }
 
-    // Calculate active cone position relative to car
-    const calculateRelativeToCar = (coneX: number, coneY: number) => {
-      const cosYaw = Math.cos(data.yaw)
-      const sinYaw = Math.sin(data.yaw)
-
-      const relativeX = coneX * cosYaw + coneY * sinYaw + vehicleX
-      const relativeY = -coneX * sinYaw + coneY * cosYaw + vehicleY
-
-      return { x: relativeX, y: relativeY }
-    }
-
-    // Draw active cones
+    // Draw active cones. They arrive in the car body frame.
     if (showActiveCones && data.active_cones && data.active_cones.length > 0) {
       data.active_cones.forEach((cone) => {
-        const globalConeX = cone.x * scale
-        const globalConeY = -cone.y * scale
-
-        // Get position relative to car
-        const relativePos = calculateRelativeToCar(globalConeX, globalConeY)
-
-        drawCone(ctx, relativePos.x, relativePos.y, cone.color, zoom, true)
+        const projected = projectBody(cone.x, cone.y)
+        drawCone(ctx, projected.x, projected.y, cone.color, zoom, true)
       })
     }
 
@@ -167,10 +232,12 @@ export default function GlobalMap({
         const current = data.waypoint_array[i]
         const next = data.waypoint_array[i + 1]
 
-        const startX = current.x * scale
-        const startY = -current.y * scale
-        const endX = next.x * scale
-        const endY = -next.y * scale
+        const start = projectWorld(current.x, current.y)
+        const end = projectWorld(next.x, next.y)
+        const startX = start.x
+        const startY = start.y
+        const endX = end.x
+        const endY = end.y
 
         // Create gradient for line
         const gradient = ctx.createLinearGradient(startX, startY, endX, endY)
@@ -194,10 +261,12 @@ export default function GlobalMap({
         const first = data.waypoint_array[0]
         const last = data.waypoint_array[data.waypoint_array.length - 1]
 
-        const startX = last.x * scale
-        const startY = -last.y * scale
-        const endX = first.x * scale
-        const endY = -first.y * scale
+        const start = projectWorld(last.x, last.y)
+        const end = projectWorld(first.x, first.y)
+        const startX = start.x
+        const startY = start.y
+        const endX = end.x
+        const endY = end.y
 
         // Create gradient for connecting line
         const gradient = ctx.createLinearGradient(startX, startY, endX, endY)
@@ -221,8 +290,9 @@ export default function GlobalMap({
       // Draw waypoint circles
       if (showWaypointIndicators) {
         data.waypoint_array.forEach((waypoint, index) => {
-          const x = waypoint.x * scale
-          const y = -waypoint.y * scale
+          const projected = projectWorld(waypoint.x, waypoint.y)
+          const x = projected.x
+          const y = projected.y
 
           const waypointSizeBase = 6
           const waypointSize = waypointSizeBase * (0.5 + 0.5/Math.max(0.5, zoom))
@@ -251,7 +321,7 @@ export default function GlobalMap({
 
     // Draw vehicle position
 
-    drawVehicle(ctx, vehicleX, vehicleY, data.yaw)
+    drawVehicle(ctx, vehicle.x, vehicle.y, vehicleYaw)
 
     ctx.restore()
   }

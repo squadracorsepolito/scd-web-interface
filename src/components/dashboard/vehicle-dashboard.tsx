@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { type VehicleData, type LapLogEntry } from "@/types/vehicle-types"
 import VehicleMetrics from "./vehicle-metrics"
+import SensorHealthPanel from "./sensor-health"
+import BagTransfer from "./bag-transfer"
 import SteeringWheel from "./steering-wheel"
 import ConeStats from "./cone-stats"
 import SpeedChart from "../charts/speed-chart"
@@ -64,19 +66,22 @@ export default function VehicleDashboard({
     >
       <div className="space-y-6">
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="relative w-32 h-6 shrink-0">
-                <Image 
-                  src="/SCD.svg" 
-                  alt="Squadra Corse Driverless" 
-                  fill 
-                  className="object-contain"
-                  priority
-                />
-              </div>
-              <h1 className="text-2xl font-bold text-white">Web Interface</h1>
+          <div className="flex items-center gap-3">
+            <div className="relative w-32 h-6 shrink-0">
+              <Image 
+                src="/SCD.svg" 
+                alt="Squadra Corse Driverless" 
+                fill 
+                className="object-contain"
+                priority
+              />
             </div>
+            <h1 className="text-2xl font-bold text-white">Web Interface</h1>
+          </div>
+          <div className="flex gap-2">
+            {webSocketService && (
+              <BagTransfer getHost={() => webSocketService.getConnectionConfig().ip} />
+            )}
             <Button
               onClick={handleTestsClick}
               size="sm"
@@ -102,6 +107,7 @@ export default function VehicleDashboard({
           )}
 
           <VehicleMetrics data={data} />
+          <SensorHealthPanel health={data?.health} />
           <SteeringWheel delta={data?.delta} />
           <ConeStats data={data} />
 

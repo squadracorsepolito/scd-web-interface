@@ -13,6 +13,14 @@ export type VehicleData = {
   active_cones: Cone[]
   green_points?: Cone[] 
   waypoint_array: Waypoint[]
+  health?: SensorHealth | null
+}
+
+export type SensorHealth = {
+  status: number
+  lidar: boolean
+  left_camera: boolean
+  right_camera: boolean
 }
 
 export type Cone = {
