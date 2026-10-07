@@ -27,7 +27,7 @@ type ConnectionConfig = {
   port: number
 }
 
-const DEFAULT_WS_HOST = process.env.NEXT_PUBLIC_WS_DEFAULT_HOST || '127.0.0.1'
+const DEFAULT_WS_HOST = process.env.NEXT_PUBLIC_WS_DEFAULT_HOST || '192.168.10.69'
 const DEFAULT_WS_PORT = Number(process.env.NEXT_PUBLIC_WS_DEFAULT_PORT) || 9090
 
 export class WebSocketService {

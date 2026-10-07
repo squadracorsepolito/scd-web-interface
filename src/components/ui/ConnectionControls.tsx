@@ -215,7 +215,7 @@ export function ConnectionControls({
                     value={ip}
                     onChange={(e) => setIp(e.target.value)}
                     className="w-full px-3 py-2 text-sm bg-zinc-800 border border-zinc-600 rounded-md text-zinc-200 placeholder-zinc-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/20 focus:outline-none transition-colors"
-                    placeholder="127.0.0.1"
+                    placeholder="192.168.10.69"
                   />
                 </div>
                 <div>

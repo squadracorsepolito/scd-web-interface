@@ -21,7 +21,7 @@ This repository is meant to be used together with the **[automated-autonomous-si
 ### Prerequisites
 
 - **Rosbag / test management:** [automated-autonomous-simulator-tests-backend](https://github.com/squadracorsepolito/automated-autonomous-simulator-tests-backend) on `http://localhost:8000` (see that repo's README for setup, migrations, and `.env`)
-- **Live telemetry (optional):** [websocket_ros](https://github.com/AlessioCammarata/websocket_ros) running on `ws://127.0.0.1:9090` (defaults to this address if not specified)
+- **Live telemetry (optional):** [websocket_ros](https://github.com/AlessioCammarata/websocket_ros) running on the NVIDIA at `ws://192.168.10.69:9090` (this is the default if not specified)
 
 ### Installation
 
@@ -54,7 +54,7 @@ Typical local workflow for rosbag upload, processing, and replay with live telem
    ros2 launch websocket_ros launch.py
    ```
 
-   This aggregates ROS 2 telemetry and broadcasts it over WebSocket on `ws://127.0.0.1:9090`.
+   This aggregates ROS 2 telemetry and broadcasts it over WebSocket on `ws://192.168.10.69:9090`.
 
 2. **Backend** — in [automated-autonomous-simulator-tests-backend](https://github.com/squadracorsepolito/automated-autonomous-simulator-tests-backend):
 
@@ -81,7 +81,7 @@ Typical local workflow for rosbag upload, processing, and replay with live telem
 |--------------------|--------------------------|-------------------------------------------|
 | SCD Web Interface  | `http://localhost:3000`  | Dashboard, replay, test UI                |
 | automated-autonomous-simulator-tests-backend | `http://localhost:8000` | Auth, rosbag CRUD, JSON/ROS generation |
-| websocket_ros      | `ws://127.0.0.1:9090`    | Live vehicle telemetry (ROS 2 bridge)     |
+| websocket_ros      | `ws://192.168.10.69:9090` | Live vehicle telemetry (ROS 2 bridge)    |
 
 ---
 
