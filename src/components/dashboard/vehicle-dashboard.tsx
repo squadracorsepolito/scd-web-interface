@@ -29,6 +29,8 @@ type VehicleDashboardProps = {
   lapLogs: LapLogEntry[]
   webSocketService: WebSocketService | null
   onViewChange: (view: 'dashboard' | 'tests') => void
+  onShowCameras: () => void
+  onShowSplit: () => void
 }
 
 export default function VehicleDashboard({
@@ -41,6 +43,8 @@ export default function VehicleDashboard({
   lapLogs,
   webSocketService,
   onViewChange,
+  onShowCameras,
+  onShowSplit,
 }: VehicleDashboardProps) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
 
@@ -107,7 +111,11 @@ export default function VehicleDashboard({
           )}
 
           <VehicleMetrics data={data} />
-          <SensorHealthPanel health={data?.health} />
+          <SensorHealthPanel
+            health={data?.health}
+            onShowCameras={onShowCameras}
+            onShowSplit={onShowSplit}
+          />
           <SteeringWheel delta={data?.delta} />
           <ConeStats data={data} />
 

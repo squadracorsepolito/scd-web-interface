@@ -10,10 +10,13 @@ import type {
 import VehicleDashboard from "../components/dashboard/vehicle-dashboard"
 import TestsDashboard from "../components/dashboard/tests-dashboard"
 import { MapContainer } from "../components/map/map-container"
+import CameraFusion from "../components/dashboard/camera-fusion"
 import { WebSocketService } from "../utils/websocket-service"
 import UploadTestModal from "../components/dashboard/upload-test-modal"
 import EditTestModal from "../components/dashboard/edit-test-modal"
 import { Rosbag } from "@/types/api-types"
+
+type PitView = "global" | "cameras" | "split"
 
 type EditData = {
   rosbag_file?: File
@@ -49,6 +52,7 @@ export default function VehicleVisualization() {
   const [throttleData, setThrottleData] = useState<DataPointType[]>([])
   const [lapLogs, setLapLogs] = useState<LapLogEntry[]>([])
   const [currentView, setCurrentView] = useState<'dashboard' | 'tests'>('dashboard')
+  const [pitView, setPitView] = useState<PitView>("global")
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingRosbag, setEditingRosbag] = useState<Rosbag | null>(null)
@@ -166,6 +170,8 @@ export default function VehicleVisualization() {
           lapLogs={lapLogs}
           webSocketService={wsRef.current}
           onViewChange={setCurrentView}
+          onShowCameras={() => setPitView("cameras")}
+          onShowSplit={() => setPitView("split")}
         />
       ) : (
         <TestsDashboard 
@@ -180,10 +186,40 @@ export default function VehicleVisualization() {
           onRefreshHandlerReady={setRefreshHandler}
         />
       )}
-      <MapContainer 
-        data={data} 
-        connectionMode={wsRef.current?.getConnectionMode()} 
-      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex gap-2 px-6 pt-4">
+          {([
+            ["global", "Map"],
+            ["cameras", "Cameras"],
+            ["split", "Map + cameras"],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setPitView(id)}
+              className={`rounded-full px-3 py-1 text-xs ${
+                pitView === id ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800 text-zinc-400"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex min-h-0 flex-1">
+          {pitView !== "cameras" && (
+            <MapContainer
+              data={data}
+              connectionMode={wsRef.current?.getConnectionMode()}
+            />
+          )}
+          {pitView !== "global" && (
+            <CameraFusion
+              getHost={() => wsRef.current?.getConnectionConfig().ip || "192.168.10.69"}
+              layout={pitView === "split" ? "column" : "row"}
+            />
+          )}
+        </div>
+      </div>
       {/* Upload Modal - rendered at root level for full screen coverage */}
       <UploadTestModal 
         isOpen={isUploadModalOpen}
