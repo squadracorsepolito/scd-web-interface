@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
+    "start": "python3 -m http.server 3000 --directory out",
+    "build:offline": "next build",
+    "start:offline": "python3 -m http.server 3000 --directory out",
     "lint": "next lint"
   },
   "dependencies": {

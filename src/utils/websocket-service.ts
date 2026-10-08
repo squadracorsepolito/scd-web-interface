@@ -29,6 +29,22 @@ type ConnectionConfig = {
 
 const DEFAULT_WS_HOST = process.env.NEXT_PUBLIC_WS_DEFAULT_HOST || '192.168.10.69'
 const DEFAULT_WS_PORT = Number(process.env.NEXT_PUBLIC_WS_DEFAULT_PORT) || 9090
+const CONNECTION_STORAGE_KEY = 'scd-ws-connection'
+
+function loadStoredConnection(): ConnectionConfig {
+  const fallback = { ip: DEFAULT_WS_HOST, port: DEFAULT_WS_PORT }
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = window.localStorage.getItem(CONNECTION_STORAGE_KEY)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw) as Partial<ConnectionConfig>
+    const ip = typeof parsed.ip === 'string' && parsed.ip.trim() ? parsed.ip.trim() : fallback.ip
+    const port = Number(parsed.port) || fallback.port
+    return { ip, port }
+  } catch {
+    return fallback
+  }
+}
 
 export class WebSocketService {
   private ws: WebSocket | null = null
@@ -48,6 +64,7 @@ export class WebSocketService {
   private isTestReplay = false
   private intentionalDisconnect = false
   private connectionConfig: ConnectionConfig = { ip: DEFAULT_WS_HOST, port: DEFAULT_WS_PORT }
+  private liveSocketId = 0
   private liveSnapshot: VehicleData | null = null
   private static readonly STATIC_MAP_STORAGE_KEY = 'scd-web-static-map-data'
   private staticMapData: Pick<VehicleData, 'map_cones' | 'active_cones' | 'waypoint_array' | 'green_points'> | null = null
@@ -55,6 +72,7 @@ export class WebSocketService {
   constructor(callbacks: WebSocketCallbacks) {
     this.callbacks = callbacks
     this.startTime = Date.now()
+    this.connectionConfig = loadStoredConnection()
     this.loadStaticMapData()
   }
 
@@ -63,11 +81,7 @@ export class WebSocketService {
     
     if (config) {
       this.connectionConfig = config;
-    }
-    
-    // Close any existing connection
-    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
-      this.ws.close();
+      this.saveConnectionConfig()
     }
     
     if (mode === 'live') {
@@ -102,16 +116,34 @@ export class WebSocketService {
     }
   }
 
-  private connectToLive() {
-    if (this.ws) {
-      this.ws.close()
+  private closeLiveSocket() {
+    const socket = this.ws
+    this.ws = null
+    if (!socket) return
+    socket.onopen = null
+    socket.onmessage = null
+    socket.onclose = null
+    socket.onerror = null
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close()
     }
-    
-    this.intentionalDisconnect = false
-    const wsUrl = `ws://${this.connectionConfig.ip}:${this.connectionConfig.port}`
-    this.ws = new WebSocket(wsUrl)
+  }
 
-    this.ws.onopen = () => {
+  private connectToLive() {
+    this.closeLiveSocket()
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
+    this.intentionalDisconnect = false
+    const socketId = ++this.liveSocketId
+    const wsUrl = `ws://${this.connectionConfig.ip}:${this.connectionConfig.port}`
+    const socket = new WebSocket(wsUrl)
+    this.ws = socket
+
+    socket.onopen = () => {
+      if (socketId !== this.liveSocketId) return
       const wasReconnecting = this.reconnectAttempts > 0
       if (wasReconnecting) {
         this.resetSessionState()
@@ -120,7 +152,8 @@ export class WebSocketService {
       this.reconnectAttempts = 0
     }
 
-    this.ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
+      if (socketId !== this.liveSocketId) return
       try {
         const receivedData = JSON.parse(event.data) as IncomingPacket
         this.processData(receivedData)
@@ -129,7 +162,8 @@ export class WebSocketService {
       }
     }
 
-    this.ws.onclose = () => {
+    socket.onclose = () => {
+      if (socketId !== this.liveSocketId) return
       this.callbacks.onDisconnect()
 
       if (this.intentionalDisconnect || this.connectionMode === 'replay') {
@@ -411,17 +445,16 @@ export class WebSocketService {
   }
 
   disconnect() {
+    this.intentionalDisconnect = true
+    this.liveSocketId += 1
+
     if (this.replayInterval) {
       clearInterval(this.replayInterval)
       clearTimeout(this.replayInterval)
       this.replayInterval = null
     }
 
-    // Clean up WebSocket connection
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
+    this.closeLiveSocket()
 
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout)
@@ -474,6 +507,12 @@ export class WebSocketService {
 
   setConnectionConfig(config: ConnectionConfig) {
     this.connectionConfig = config
+    this.saveConnectionConfig()
+  }
+
+  private saveConnectionConfig() {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(this.connectionConfig))
   }
 
   private mergeLivePacket(update: VehicleData | Partial<VehicleData>): VehicleData | null {
