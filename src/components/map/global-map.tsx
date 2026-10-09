@@ -356,13 +356,13 @@ export default function GlobalMap({
     let strokeColor
 
     if (color === 1) {
-      fillColor = "#3B82F6" // Blue
-      shadowColor = isActive ? "rgba(96, 165, 250, 0.8)" : "rgba(59, 130, 246, 0.5)"
-      strokeColor = "rgba(96, 165, 250, 0.6)"
-    } else if (color === 2) {
       fillColor = "#FBBF24" // Yellow
       shadowColor = isActive ? "rgba(252, 211, 77, 0.8)" : "rgba(251, 191, 36, 0.5)"
       strokeColor = "rgba(252, 211, 77, 0.6)"
+    } else if (color === 2) {
+      fillColor = "#3B82F6" // Blue
+      shadowColor = isActive ? "rgba(96, 165, 250, 0.8)" : "rgba(59, 130, 246, 0.5)"
+      strokeColor = "rgba(96, 165, 250, 0.6)"
     } else if (color === 3) {
       fillColor = "#F97316" // Orange
       shadowColor = isActive ? "rgba(249, 115, 22, 0.8)" : "rgba(249, 115, 22, 0.5)"
